@@ -1,0 +1,6 @@
+interface:
+  display_name: "Manual GPT Pro Advisor"
+  short_description: "Prepare and reconcile a user-relayed web Pro consultation"
+  default_prompt: "Use $consult-gpt-pro to prepare a manual web consultation for the decision I specify."
+policy:
+  allow_implicit_invocation: false

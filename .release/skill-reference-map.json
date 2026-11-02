@@ -1,0 +1,10 @@
+{
+  "skills/claude-codex-router/references/claude-direct-work.md": "docs/claude-direct-work.md",
+  "skills/claude-codex-router/references/project-memory.md": "docs/project-memory.md",
+  "skills/claude-codex-router/references/router-prompts.md": "docs/router-prompts.md",
+  "skills/claude-codex-router/references/runtime-operations.md": "docs/runtime-operations.md",
+  "skills/claude-codex-router/references/worker-sessions.md": "docs/worker-sessions.md",
+  "skills/claude-codex-worker/references/project-memory.md": "docs/project-memory.md",
+  "skills/claude-codex-worker/references/worker-sessions.md": "docs/worker-sessions.md",
+  "skills/consult-gpt-pro/references/workflow.md": "docs/human-advisor.md"
+}

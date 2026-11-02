@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cc-codex-super-agent"
+version = "0.2.3.post1"
+description = "Claude Code Router and native Codex Workers"
+license = {file = "LICENSE"}
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+ai-work = "claude_codex_workflow.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
