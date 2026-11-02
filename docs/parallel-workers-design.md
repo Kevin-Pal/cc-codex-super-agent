@@ -45,6 +45,8 @@ Codex 0.166.0 的 thread/start 与 turn/start 参数没有可设置的 projectId
 
 2026-11-02，另从 Desktop 专用接口只读核对现有样本：一个 sibling linked-worktree 正式 Worker 的应用层 Project ID 与原 checkout 的 Project ID 相同，执行 cwd 仍是 worktree。此例不需要增加第二根目录，说明原生返回 null 不能等同于 Desktop 未分组；没有目视截图，也不据此宣称任何新建/迁移方式均保持归属。具体 ID 与路径仅留实例回执。
 
+同日后续复核：同一个 worktree 样本及一个子目录正式 Worker 在 Desktop 专用 history 接口的 Project 归属均为空；两者仍登记、持久、未归档且空闲，用户从 Recents 能找到但父 Project 为空。之前样本归组成功只是一时观察，不是稳定保证；归属变化原因和独立 GUI build 未取证。不将父目录自动递归收纳子目录/所有 linked worktree 视为已验收能力。见 [Desktop 会话发现边界](desktop-session-visibility.md)。
+
 worktree 内的 AGENTS.md/项目文档是版本快照，不会自动实时同步。仍保持一套逻辑权威事实和版本：中心项目记录已接受的决定，工作包带本轮基线/必要增量；分支只修改相关内容、回传候选结论，集成后刷新继续工作的 Worker。不能另建 Claude/Codex/每个 worktree 各自竞争的事实库。
 
 ## 下一轮验收范围

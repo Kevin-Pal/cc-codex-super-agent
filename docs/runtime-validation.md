@@ -1,5 +1,9 @@
 # 运行验证记录
 
+## 2026-11-02 Desktop 发现边界后续复核
+
+仅做只读登记/原生索引/Desktop 专用列表核对：两个正式 Worker 已分别验收多轮任务，仍持久、未归档、空闲且未 released；子目录与 sibling worktree 的应用层 Project 归属均为空，用户报告父 Project 为空、Recents 可见。早前同一样本归原 Project 的记录保留为当时观察，不能推广为稳定保证。另一个“完成后消失”的条目缺少可定位标题/ID，未确定原因；未将它判为 temp 或删除。见 [排查说明](desktop-session-visibility.md)。没有更改 thread/cwd/Project、原生数据库、安装或 daemon，没有调用新的模型任务。
+
 ## Public source snapshot 0.2.3.post1
 
 公开导出增加安装保留性、既有生成链回滚、技能引用完整性、敏感文本检测及历史删除后仍可检出的回归。基础95项继续保留；公开快照在macOS Python3.13和Linux Python3.12各完整100项通过。新增公开安装器只更新自己的标记块/hooks，不清理个人旧标题、不覆盖其他包的codex-delegate入口。最终源码归档在macOS/Linux隔离home验证安装、引用、脱离checkout的启动、幂等与卸载，不改实际账户；远端新克隆另做发布前烟测。没有为这次导出调用新的真实模型任务。

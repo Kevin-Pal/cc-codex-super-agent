@@ -16,3 +16,5 @@ Use the Router to clarify goals and review delivery. Use Desktop to observe or d
 If either side's quota or service is temporarily unavailable, the other may work independently within an explicit scope, without another concurrent writer. Reconcile decisions, actual changes and evidence when service returns. This is a continuity rule, not a claim of implemented automatic quota detection.
 
 Logs may aid later diagnosis, but they remain private instance data. Report task/thread identifiers, version, timestamps, state transitions and a sanitized reproduction rather than posting raw conversations or credentials.
+
+Desktop Project grouping is separate from Worker retention: nested-directory or linked-worktree sessions may remain in Recents without appearing under a parent Project. Finishing a formal task does not delete or archive its chat. See [Desktop visibility and diagnosis](desktop-session-visibility.md) before creating a replacement or retrying work.
