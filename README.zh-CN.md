@@ -39,6 +39,8 @@ flowchart LR
 
 ## 使用
 
+当前公开源码 `0.3.0` 包含运行层、两端技能、可选手动 Pro 顾问和可回滚安装器。需要 Python 3.11+、POSIX macOS/Linux、同一执行用户下可用的原生 Codex 后端/control socket；仅装 CLI 不保证有该端点。按 [SETUP.md](SETUP.md) 先预览再安装。当前支持 Git checkout/源码归档安装，尚不支持 wheel/PyPI 分发。
+
 ```sh
 git clone https://github.com/Kevin-Pal/cc-codex-super-agent.git CC-Codex_Super_Agent
 cd CC-Codex_Super_Agent
@@ -49,9 +51,6 @@ PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both --apply
 ```
 
 在项目目录启动 Claude Code 并加载 `/claude-codex-router`；在 Codex Desktop 打开同一执行设备、用户和项目路径，查看正式 Worker 与个人会话。只有访问端的电脑无需另装框架。
-
-
-首个源码快照 `0.3.0` 包含运行层、两端技能、可选手动 Pro 顾问和可回滚安装器。需要 Python 3.11+、POSIX macOS/Linux、同一执行用户下可用的原生 Codex 后端/control socket；仅装 CLI 不保证有该端点。按 [SETUP.md](SETUP.md) 先预览再安装。当前支持 Git checkout/源码归档安装，尚不支持 wheel/PyPI 分发。
 
 执行端承载项目入口、Claude CLI、Codex 后端和框架。人可以就在执行端，也可以通过 SSH/tmux 与 Codex Desktop Remote 访问；访问端无需再装框架。任务实际操作的目标可以在别处。
 

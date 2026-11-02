@@ -2,6 +2,8 @@
 
 ## Documentation — interaction and deterministic mechanics
 
+- Keep the original workflow/context explanations, move the large graph to its chapter, and show both human–Router and human–Worker interaction with a small diagram.
+
 - Simplify both README entry pages around purpose, setup and usage; keep the full architecture diagram in its dedicated guide.
 
 - Explain current history/queue/steer behavior and explicitly separate the unshipped 0.4.0 API candidate.
