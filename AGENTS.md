@@ -13,4 +13,4 @@ This repository is the public-facing, MIT-licensed source snapshot for a Claude 
 - Preserve unrelated global instructions and settings. Internal Claude provider/auth/privacy maintenance is outside this project. Public installation changes only owned blocks/hooks; unfamiliar generation systems need explicit integration.
 - Run proportionate tests. For this runtime: PYTHONPATH=src python3 -m unittest discover -s tests. Before a public push also run python3 tools/check_publication.py --history; do not bypass a finding without review.
 
-Read README.md, SETUP.md, docs/project-state.md and the task-relevant guide. Local pre-push hooks are optional assistance, not server-side enforcement. See CONTRIBUTING.md.
+Read README.md, SETUP.md, docs/README.md, docs/project-state.md and the task-relevant guide. Superseded plans belong in docs/history/ with a replacement link. Local pre-push hooks are optional assistance, not server-side enforcement. See CONTRIBUTING.md.

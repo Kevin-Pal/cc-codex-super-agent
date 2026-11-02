@@ -19,7 +19,7 @@ git clone https://github.com/Kevin-Pal/cc-codex-super-agent.git
 cd cc-codex-super-agent
 PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both
 PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both --apply
-ai-work doctor
+~/.local/bin/ai-work doctor
 ```
 
 第一次安装命令只预览改动；确认后第二条执行安装，加入本框架管理的指令块、角色 skill、`ai-work` 和协调 hooks。安装器不调整供应商、认证或隐私设置。
@@ -31,6 +31,8 @@ ai-work doctor
 本地与远程的使用方式基本一致。远程执行时用 SSH/tmux 访问 Claude，用 Desktop Remote 访问 Codex；仅负责访问的电脑无需安装本框架。
 
 ## 进一步了解
+
+[文档索引](docs/README.md)
 
 - [安装、权限与回滚](SETUP.md)
 - [组件与架构图](docs/framework-components.md) · [路径与归属](docs/project-paths.md)

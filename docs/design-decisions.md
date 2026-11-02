@@ -74,8 +74,15 @@ hooks/角色 guard 用来减少忘规和交互成本，不能称为同 UID 的 O
 
 ## 并行工作区的下一步
 
-Claude 亲自完成本职、尊重明确点名并引导不足的 Worker，这三项与默认委派并存。并行采用 Router 判断依赖、程序维护容量与互斥、worktree/输出目录隔离实际变更，再由单写者集成。尚待下一轮实现与 Desktop 验收，见 [DeepSeek 研究](deepseek-superagent-study.md)与[并行设计](parallel-workers-design.md)。
+Claude 亲自完成本职、尊重明确点名并引导不足的 Worker，这三项与默认委派并存。并行采用 Router 判断依赖、程序维护容量与互斥、worktree/输出目录隔离实际变更，再由单写者集成。尚待下一轮实现与 Desktop 验收，见 [DeepSeek 研究](deepseek-superagent-study.md)与[并行设计](history/parallel-workers-design.md)。
 
 ## 旧技能删除不等于旧会话忘记
 
 Claude Code [官方技能生命周期](https://code.claude.com/docs/en/skills#skill-content-lifecycle) 说明 compact 会重附会话里以前调用过的技能指引；删除磁盘入口只停用后续发现，不删除历史上下文。迁移时要明确废止旧指引并加载当前入口；必要时通过共享项目状态新建会话，不篡改原生聊天记录。上下文提醒属于语义引导，不能宣称它拦截了原生恢复。
+
+
+## Acceptance and lifecycle review
+
+Use consequence-based L1/L2/L3 acceptance as described in [work packages](router-prompts.md). The Router keeps final responsibility; reviewer findings are evidence. A one-off ephemeral reviewer does not promise continuation after release. Native Claude subagent review remains explicit-user, read-only and outside the managed Worker registry; a registered integration is TBD.
+
+Formal Workers divide long-lived responsibilities at the Router entry. The runtime still serializes same-tree writes regardless of filenames; conflicting parallel work can use an isolated temp. Filename-level leases are not planned. Tracking Router documentation changes during active Worker work is still TBD.

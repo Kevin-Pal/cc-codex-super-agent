@@ -2,8 +2,6 @@
 
 > 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
 
-本文说明源码快照中已实现的会话管理；安装前阅读 SETUP.md 和版本兼容记录。
-
 这是协作契约与当前设计，不把某个原生客户端版本的所有界面行为视为永久保证。临时/正式/个人与 easy/hard/xhard 是两个独立维度；一次性困难调查也可以用高档 temp，持续简单工作也可以复用正式 Worker。
 
 | 类别 | 谁创建/默认归属 | 人在 Desktop 的日常列表 | Router 如何使用 | 连续性与结束 |
@@ -11,6 +9,16 @@
 | 临时 Worker（temp） | Router 在任务授权内创建，一次性批量/独立短任务 | 正常历史列表隐藏；不等于无审计数据 | 交明确短任务，取结果并验收，不当长期方向使用 | 原生 ephemeral；保留任务交付/验收记录，不承诺跨协调重启恢复原生上下文 |
 | 正式 Worker（worker） | Router 按用户指令或已授权工作流创建，登记所属 Router 与方向 | 可见，人可观察或直接交流 | 同一方向优先续用已登记原生 thread，不每次找新 Worker | 完成单个任务后保留；暂停、人工接管、归还或解除管理，均不等于删除聊天 |
 | 自建 session（personal） | 人在 Desktop/CLI 自建，默认由人管理 | 可见，人自由交流 | 只有用户点名后才 adopt 指挥；不扫描后按“最近一个”擅自接管 | 保留原 thread/名称与历史；解除纳管后仍可由人继续 |
+
+## 何时建正式 Worker，何时用 temp
+
+2026-11-03 用户确认：
+
+- **正式 Worker = 长期分工。** 用户指定，或 Router 判断某方向需要长期维护、值得复用记忆时建立；不必过度谨慎。多一个正式条目对 AI 影响很小，人不想看可以在 Desktop archive；能复用上下文时收益很大。
+- **temp = 临时小任务。** 改一张图、做一个小实验、独立实现一个片段、一次性审查。需要和其他写任务并行或有冲突风险时，用 `--isolation worktree` 隔离，完成后由单一执行者集成。
+- **同树写入。** 正式 Worker 固定在 Router 的项目入口，靠划分文件/产出责任协作；当前程序对同树写任务统一排队，文件不同也不会自动放行并行。不计划为同树多个正式写者实现按文件租约。
+
+这与 Claude Code 中 agent teams（长期角色）和 subagents（一次性、独立上下文）的关系相似，但执行者都是 Codex 原生会话，不启用 Claude 原生 Teams。
 
 ## 默认保留与按需查找
 

@@ -9,4 +9,4 @@
 - Review native versions and capabilities; separate framework source, installed content, running daemon and access GUI versions.
 - Publish reviewed generic snapshots with clean provenance boundaries. Private provider/account experience, host configuration and conversations do not belong in public examples.
 
-Future integration and communication improvements are tracked in [roadmap](roadmap.md), [parallel design](parallel-workers-design.md) and [communication](communication-and-sandbox.md).
+Future integration and communication improvements are tracked in [roadmap](roadmap.md), [parallel design](history/parallel-workers-design.md) and [communication](communication-and-sandbox.md).

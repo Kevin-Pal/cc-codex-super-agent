@@ -1,6 +1,8 @@
+> Historical proposal/handoff. Current behavior is defined by [project paths](../project-paths.md), [components](../framework-components.md) and the [documentation index](../README.md). Earlier plans are not current API or permission grants.
+
 # 同项目并行 Worker：隔离执行与有序集成
 
-> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
+> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](../project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
 
 2026-11-02。状态：研究与建议方案，尚未安装自动 worktree 管理、资源租约、并发配置或原生项目关联适配。本轮没有放宽同工作树单写者，也没有新派发真实模型任务。
 
@@ -27,7 +29,7 @@ OpenAI 官方提供 [worktree 工作流](https://learn.chatgpt.com/docs/environm
 
 Router 决定任务是否独立、接口与依赖、共享事实变化以及是否接受集成结果。程序记录精确 ID/工作树/基线，执行容量、写入与资源互斥，拒绝旧任务和未知重放。自然语言用于判断与约束，程序用于可确定的状态，worktree 用于隔离 checkout；三者互补。
 
-第一版不要求 Worker 互聊。A 交付接口/commit 后，由 Router 将可引用的增量交给 B，或按依赖先后启动；批量重复消息以后可做去重事件通知。通知不改变权限，不能替代锁或项目事实更新。DeepSeek 的相关经验见 [研究记录](deepseek-superagent-study.md)。
+第一版不要求 Worker 互聊。A 交付接口/commit 后，由 Router 将可引用的增量交给 B，或按依赖先后启动；批量重复消息以后可做去重事件通知。通知不改变权限，不能替代锁或项目事实更新。DeepSeek 的相关经验见 [研究记录](../deepseek-superagent-study.md)。
 
 Router 平常不改代码可降低一种冲突，仍需防不同 Router、人的直接回合和授权 Claude takeover 与 Worker 重叠。worktree 不阻止高权限进程写回原目录，也不隔离共享 Git 配置/对象、数据库、服务端口、GPU、缓存和远端目标；按实际目标另做资源约束，不能宣称 OS 沙箱。
 
@@ -47,7 +49,7 @@ Router 平常不改代码可降低一种冲突，仍需防不同 Router、人的
 
 2026-11-02，另从 Desktop 专用接口只读核对现有样本：一个 sibling linked-worktree 正式 Worker 的应用层 Project ID 与原 checkout 的 Project ID 相同，执行 cwd 仍是 worktree。此例不需要增加第二根目录，说明原生返回 null 不能等同于 Desktop 未分组；没有目视截图，也不据此宣称任何新建/迁移方式均保持归属。具体 ID 与路径仅留实例回执。
 
-同日后续复核：同一个 worktree 样本及一个子目录正式 Worker 在 Desktop 专用 history 接口的 Project 归属均为空；两者仍登记、持久、未归档且空闲，用户从 Recents 能找到但父 Project 为空。之前样本归组成功只是一时观察，不是稳定保证；归属变化原因和独立 GUI build 未取证。不将父目录自动递归收纳子目录/所有 linked worktree 视为已验收能力。见 [Desktop 会话发现边界](desktop-session-visibility.md)。
+同日后续复核：同一个 worktree 样本及一个子目录正式 Worker 在 Desktop 专用 history 接口的 Project 归属均为空；两者仍登记、持久、未归档且空闲，用户从 Recents 能找到但父 Project 为空。之前样本归组成功只是一时观察，不是稳定保证；归属变化原因和独立 GUI build 未取证。不将父目录自动递归收纳子目录/所有 linked worktree 视为已验收能力。见 [Desktop 会话发现边界](../desktop-session-visibility.md)。
 
 worktree 内的 AGENTS.md/项目文档是版本快照，不会自动实时同步。仍保持一套逻辑权威事实和版本：中心项目记录已接受的决定，工作包带本轮基线/必要增量；分支只修改相关内容、回传候选结论，集成后刷新继续工作的 Worker。不能另建 Claude/Codex/每个 worktree 各自竞争的事实库。
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## Documentation integration candidate — not a runtime upgrade
+
+- Document the confirmed 0.3.0 same-turn human-steering freshness limit and private candidate hardening; no runtime fix is exported here.
+- Review consequence-based acceptance tiers and formal/temp lifecycle guidance; clarify that same-tree writes still serialize and ephemeral reviewers do not promise reuse.
+- Add an index and archive superseded public proposals; preserve public-specific evidence and distribution policy.
+- Separate urgent feature work, native probes, real-task trials and actual installation. Runtime source, version and skill entrypoints stay at 0.3.0.
+
 ## Documentation — interaction and deterministic mechanics
 
 - Simplify both README entry pages around purpose, setup and usage; keep the full architecture diagram in its dedicated guide.

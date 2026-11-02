@@ -1,5 +1,21 @@
 # 运行验证记录
 
+## 证据分层与下一轮试用
+
+
+本公开分支只整理文档与验收指导，运行源码仍0.3.0。下述0.4.0证据来自尚未导出的私有开发候选，不能当成此公开源码已具备新API；当前已观察的实例安装仍是0.3.0。下表按证据类型记录，不把新增需求全部冻结，也不把源码完成直接写成现场稳定。
+
+| 证据 | 已有 | 仍需验证 |
+| --- | --- | --- |
+| 源码/隔离回归 | 初始私有交互候选各152项；同回合纠偏加固后Mac/Linux各158项（此公开分支仍是130项旧运行源码回归） | 整合后重跑受影响检查；通过不等于真实Router已采用新规则 |
+| 原生接口 | 0.4.0只读历史/status/unread探针；0.3.0真实temp回收与同ID路径修复 | 0.4.0完整Router操作与Desktop人工介入交接 |
+| 常规真实任务 | 0.3.x已有正式Worker多轮续用、任务验收、空闲唤回；原始记录在实例侧 | 0.4.0待安装后选一个已授权低风险任务，实际记录新接口/分级是否减负 |
+| 跨客户端与故障 | 既有同thread人工改动使旧sync失效；候选有分片/失败回归 | 实际人工介入→unread→续派；较大积压、输出中断/确认失败的可见重复 |
+| 隔离并行与集成 | 注册worktree互斥和回收已有程序/原生证据 | 两个真实写任务、单执行者集成和组合检查全流程；此前不得写成已完整验收 |
+
+试用复用用户已经授权的任务，不为了凑样本接管其他项目或重复生产任务。每项记版本、目标、实际命令/产物、人的介入、问题和未验证项；失败形成具名修复，修复后重验受影响范围。不预先承诺token或质量提升比例。具体现场ID/日志留在私有运维记录。
+
+
 ## 0.3.0 — 2026-11-03
 
 The shared implementation passed 125 isolated regressions on Mac Python3.13 and Linux Python3.12. The public source snapshot additionally passed all 130 tests on both systems, including distribution checks. A standard Git source archive was installed into a synthetic home on both systems: preview, preserved user settings/hooks, role/reference resolution, launcher without source PYTHONPATH, idempotence and rollback passed; no real model call was used for distribution checks. They cover fixed entry/creation rejection, canonical external adoption with preserved manual control, same-ID idle reload and crash visibility recovery, atomic Worker/project/resource registration, bad-environment scheduler isolation, transient transport recovery, native background response validation, cancelled-temp cleanup, tracked/untracked/ignored artifacts, unintegrated commits, real detached processes, and idle cleanup retries. Public distribution checks are additionally recorded with the public snapshot.
@@ -71,4 +87,9 @@ Mac 与 Linux 的隔离回归各 80 项通过（含本轮新增 9 项）。覆�
 - 独立 reviewer 从干净 thread 开始并关闭原生 memories 使用/生成；验收数据应给不可变快照，不能把两个模型意见一致当作正确。
 - 本轮没有性能/成本基准，不承诺节省比例；还需要日常任务反馈。GPU/大实验的资源约束应明确写进工作包，当前执行槽与写入互斥不等于 GPU 调度器。
 
-后续 Claude 可在 [目标与手段边界](claude-review-handoff.md) 内优化，并重跑受影响用例。公开版本按经过隐私/来源审查的阶段性快照维护；不自动同步私有开发历史。
+后续 Claude 可在 [目标与手段边界](history/claude-review-handoff.md) 内优化，并重跑受影响用例。公开版本按经过隐私/来源审查的阶段性快照维护；不自动同步私有开发历史。
+
+
+## Private integration candidate follow-up
+
+A failing regression demonstrated that 0.3.0 could keep a sync token unchanged after human input was appended inside a Router-started turn. The private 0.4.0 candidate records the original input digest and includes further/changed user inputs in freshness checks; its158 regressions passed on Mac/Linux. Native CLI read-only delivery bookkeeping and isolated installation/rollback also passed, with no model task or production install change. This is private candidate evidence, not a runtime fix exported by this documentation branch; see [interaction limits](worker-interaction.md).

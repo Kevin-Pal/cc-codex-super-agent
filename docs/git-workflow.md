@@ -33,3 +33,8 @@ Git 跟踪规则源，模型上下文不会随 push 自动互通。持续 Worker
 `git pull` 不会把 `rules/` 自动覆盖到 `~/.claude/CLAUDE.md`、`~/.codex/AGENTS.md` 或共享记忆源。未来部署必须先比较、备份、合并和验证，并在实例侧登记已安装的 commit。
 
 源码更新不自动安装。需要部署时按SETUP.md预览合并，在实例私有回执记录实际安装与运行版本；公开代码更新不代表可以改变生产会话或账号配置。
+
+
+## Feature work and real-task validation
+
+Urgent needs found in actual work can be developed and tested in parallel. Keep non-urgent ideas TBD. Record source tests, native probes, real user tasks, installed versions and published snapshots separately; a passing unit test does not establish a successful live workflow. Candidate capabilities remain labelled until the corresponding trial. Do not use this review to add unrelated runtime features. See [validation](runtime-validation.md).

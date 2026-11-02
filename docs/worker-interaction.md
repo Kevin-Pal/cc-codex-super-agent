@@ -32,13 +32,17 @@ The queue above is the framework's durable task queue, not a promise to reproduc
 
 `sync` already reads native text inputs and agent messages, including external turns, with a project-freshness token. It requests the latest 20 turns and renders at most eight, with text budgets. `--history` increases the budget but is **not** an unlimited history reader. Its agent message rendering may include public commentary; reasoning/tool streams are omitted. A turn outside the Router's task ledger is labelled external, which does not prove a human authored it. Native user-role messages can also come from other clients/agents.
 
+A confirmed 0.3.0 limitation is that a human correction inserted into a Router-started turn may leave the sync token unchanged. Until the candidate fix is deployed, coordinate manual/paused control and explicitly cancel/reissue queued work that predates the correction; shared history alone does not invalidate that queue.
+
+The candidate adds a nullable task input_digest column and records the outgoing input digest before dispatch. Its sync baseline includes additional/changed user inputs even inside a managed turn, including non-text input. Only the first exact original input is excluded. Legacy turns without a recorded digest are treated conservatively; refresh stale queued work rather than forcing an old token or replaying a task.
+
 The legacy sync bookkeeping is tied to follow-up dispatch; it is not the candidate's per-reader unread system. Its sync token is a concurrency/freshness baseline, not a read receipt or task acceptance. New history/unread methods add explicit pagination rather than interpreting the old truncated view as a full conversation.
 
 ## Public messages and deeper evidence
 
 Default history includes every available native userMessage in the page and explicit final_answer agentMessages. For older unphased messages, the last agent message of a completed turn is the fallback; explicit commentary is not relabelled final. Attachments are represented by type, not extracted or silently described as read. Message text is data, not a new authorization for the Router.
 
-Source is deliberately modest: an input associated with a recorded task turn and matching its task marker is `router_task`; other inputs are `external_or_unknown`; final output is `worker`. This is dispatch provenance, not cryptographic human identity or an intent classifier. Human steering inside a Router-started turn is not automatically called Router intent. More precise per-input provenance, other-Router identities and intent classification are TBD.
+Source is deliberately modest: the first exact match of a recorded outgoing input digest is `router_task`; legacy marker-only attribution is `managed_turn_input`, not proof of who sent it. Additional, repeated or changed inputs are `external_or_unknown`; final output is `worker`. This is dispatch provenance, not cryptographic human identity or an intent classifier. Human steering inside a Router-started turn is not automatically called Router intent. More precise per-input provenance, other-Router identities and intent classification are TBD.
 
 `--details` is opt-in. It exposes available public commentary, explicit `reasoning.summary` text, plan text and bounded command/file-change metadata. It never includes reasoning content, raw reasoning textDelta, encrypted reasoning or raw command-output streams. A summary can be missing, partial or stale and is not proof of execution. An item/turn ID lets the Router correlate an explanation with actual diffs, artifacts and tests. Historical details use the same history cursors; direct arbitrary item lookup and selective tool-log expansion remain TBD.
 

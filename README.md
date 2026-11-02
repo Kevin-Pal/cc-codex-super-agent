@@ -19,7 +19,7 @@ git clone https://github.com/Kevin-Pal/cc-codex-super-agent.git
 cd cc-codex-super-agent
 PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both
 PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both --apply
-ai-work doctor
+~/.local/bin/ai-work doctor
 ```
 
 The first install command previews changes. Applying adds owned instruction blocks, role skills, the `ai-work` CLI and coordination hooks. Provider/authentication/privacy settings remain outside this installer.
@@ -31,6 +31,8 @@ The first install command previews changes. Applying adds owned instruction bloc
 Local use and remote use share this workflow. For a remote execution host, use SSH/tmux for Claude and Desktop Remote for Codex; a computer used only for access needs no framework installation.
 
 ## Learn more
+
+[Documentation index](docs/README.md)
 
 - [Setup, permissions and rollback](SETUP.md)
 - [Components and architecture diagram](docs/framework-components.md) · [Project paths and ownership](docs/project-paths.md)
