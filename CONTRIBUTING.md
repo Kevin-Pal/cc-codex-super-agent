@@ -8,7 +8,7 @@ python3 tools/sync_skill_references.py --check
 python3 tools/check_publication.py --history
 ```
 
-An optional repository-local pre-push hook can be installed with `python3 tools/install_dev_hooks.py`. It runs the publication check and does not change global Git settings or the private development repository. Hooks can be bypassed and are not server-side enforcement; review every outgoing change and commit identity regardless.
+An optional repository-local pre-push hook can be installed with `python3 tools/install_dev_hooks.py`. It runs the publication check and does not change global Git settings or the private development repository. Hooks can be bypassed and are not server-side enforcement; review every outgoing change and commit identity regardless. The current publication policy expects GitHub noreply author/committer email addresses; deliberately publishing another identity needs an explicit policy review. Configure identity locally for this repository, not globally.
 
 Keep auth/provider files, private logs, real task data, hostnames/home paths and personal memories outside this repository. Do not merge private repository history into a public branch. Export reviewed allowlisted files and retain exact provenance privately. See [snapshot policy](docs/snapshot-workflow.md).
 

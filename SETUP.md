@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Use Python 3.11+ and Git on macOS/Linux. This snapshot uses POSIX locks and Unix sockets; native Windows is not validated. Keep the project entry directory, Claude CLI, native Codex backend and framework under one execution host/user. You need your own working access to both harnesses.
+Use Python 3.11+ and Git on macOS/Linux. Check `python3 --version`; if the OS default is older, substitute an available Python 3.11+ interpreter in the commands below. The installer records the interpreter it actually runs under. This snapshot uses POSIX locks and Unix sockets; native Windows is not validated. Keep the project entry directory, Claude CLI, native Codex backend and framework under one execution host/user. You need your own working access to both harnesses.
 
 First make the native Codex Desktop/Remote connection work and open the target directory there. The tested backend exposes `~/.codex/app-server-control/app-server-control.sock` (or the corresponding CODEX_HOME path). Check the actual endpoint, not only `codex --version`. A standalone CLI installation or a new generic app-server process does not guarantee the shared control endpoint this adapter expects. Stop at an unavailable endpoint rather than starting a second runtime or falling back to one-shot exec.
 
