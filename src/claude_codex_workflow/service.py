@@ -74,7 +74,8 @@ def dispatch(manager, request):
     methods = {"open": manager.open, "sync": manager.sync, "send": manager.send,
                "adopt": manager.adopt, "control": manager.control, "cancel": manager.cancel,
                "router": manager.register_router, "steer": manager.steer, "takeover": manager.takeover,
-               "direct": manager.direct}
+               "direct": manager.direct, "inspect": manager.inspect, "repair": manager.repair,
+               "workspace": manager.workspace, "review": manager.review}
     if operation in methods:
         # Serialize control changes with dispatch, including the window before
         # the native turn ID has been returned. A cancel must not be overwritten
@@ -100,8 +101,6 @@ def dispatch(manager, request):
         return task
     if operation == "inbox":
         return store.rows("SELECT id,worker,state,result,error,updated FROM tasks WHERE router=? AND state IN ('READY','BLOCKED','FAILED','INCONCLUSIVE') ORDER BY updated", (p["router"],))
-    if operation == "review":
-        return store.decide(**p)
     if operation == "events":
         rows = store.rows("SELECT e.* FROM events e LEFT JOIN workers w ON w.id=e.worker WHERE (w.router=? OR e.kind IN ('takeover_started','takeover_released','router_direct')) AND e.seq>? ORDER BY e.seq", (p["router"], p.get("after", 0)))
         return [row for row in rows if row["worker"] is not None or json.loads(row["payload"]).get("router") == p["router"]][:100]

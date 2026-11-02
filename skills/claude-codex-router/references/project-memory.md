@@ -1,5 +1,7 @@
 # 一套共享项目记忆
 
+> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](../../../docs/project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
+
 2026-11-02 共同知识约定。0.2.0 安装全局协作入口，但不批量迁移既有项目记忆；正式 Worker 沿用用户原生记忆设置，临时/独立审查会话关闭本轮 memories 使用/生成，避免无关上下文和审查污染。
 
 ## 原则与布局

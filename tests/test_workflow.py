@@ -81,6 +81,7 @@ class WorkflowTests(unittest.TestCase):
         self.temp.cleanup()
 
     def opened(self, **extra):
+        self.manager.register_router("router-a", "Data platform", str(self.project))
         with patch("shutil.which", return_value=None):
             return self.manager.open("router-a", "Data platform", str(self.project), "Exports", stream="export", **extra)
 
@@ -178,6 +179,7 @@ class WorkflowTests(unittest.TestCase):
             third = self.manager.open("router-a", "Data platform", str(self.project), "Audit", stream="audit")
         other = self.root / "other"; other.mkdir(); (other / "AGENTS.md").write_text("Other project.\n")
         with patch("shutil.which", return_value=None):
+            self.manager.register_router("router-b", "Other", str(other))
             foreign = self.manager.open("router-b", "Other", str(other), "Docs", stream="docs")
         running = self.send(first)
         self.manager._dispatch(self.manager.store.task(running["task_id"]))
@@ -237,6 +239,7 @@ class WorkflowTests(unittest.TestCase):
     def test_takeover_cannot_steal_pending_work(self):
         a = self.opened()
         self.send(a)
+        self.manager.register_router("router-b", "Other", str(self.project))
         with self.assertRaisesRegex(ValueError, "pending"):
             self.manager.adopt(a["worker"]["id"], "router-b", "Other", from_router="router-a")
 
@@ -293,8 +296,9 @@ class WorkflowTests(unittest.TestCase):
                     patch("claude_codex_workflow.cli.call", side_effect=lambda op, p: dispatch(self.manager, {"operation": op, "params": p})), \
                     contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(main(["router", "--cwd", str(self.project), *flags]), 0, output.getvalue())
-                self.assertEqual(json.loads(output.getvalue())["result"],
-                                 {"router": router, "name": name, "cwd": str(self.project)})
+                result = json.loads(output.getvalue())["result"]
+                self.assertEqual((result["router"], result["name"], result["project_root"]),
+                                 (router, name, str(self.project.resolve())))
                 registered = self.manager.store.one("SELECT * FROM routers WHERE id=?", (router,))
                 self.assertEqual((registered["name"], registered["cwd"]), (name, str(self.project)))
 
@@ -338,7 +342,7 @@ class WorkflowTests(unittest.TestCase):
         rows = self.manager.store.rows("SELECT * FROM routers")
         self.assertEqual(len(rows), 1)
         self.assertEqual((rows[0]["id"], rows[0]["name"], rows[0]["cwd"]),
-                         ("router-a", "Renamed Router", str(changed_cwd)))
+                         ("router-a", "Renamed Router", str(self.project)))
         self.assertIn(opened["worker"]["id"], json.loads(output.getvalue())["hookSpecificOutput"]["additionalContext"])
         self.assertEqual(env_file.read_text(), "preserve existing environment\n")
 
@@ -353,7 +357,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(context(data, start=True), 0)
         self.assertEqual(json.loads(output.getvalue())["hookSpecificOutput"]["hookEventName"], "SessionStart")
         self.assertEqual(self.manager.store.one("SELECT name FROM routers WHERE id='router-a'")["name"], "Data platform")
-        self.assertEqual(env_file.read_text(), "\nexport CCW_ROUTER_ID=router-a\nexport CCW_ROUTER_NAME='Data platform'\n")
+        self.assertEqual(env_file.read_text(), "\nexport CCW_ROUTER_ID=router-a\nexport CCW_ROUTER_NAME='Data platform'\nexport CCW_PROJECT_ROOT=" + str(self.project.resolve()) + "\n")
 
 
 class InstallTests(unittest.TestCase):

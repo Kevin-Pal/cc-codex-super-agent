@@ -38,6 +38,7 @@ class TakeoverTests(unittest.TestCase):
                             reason="Codex quota unavailable", **extra)
 
     def opened(self, router="router-a", cwd=None, **extra):
+        self.manager.register_router(router, "Project", str(cwd or self.project))
         with patch("shutil.which", return_value=None):
             return self.manager.open(router, "Project", str(cwd or self.project), "Implementation", stream="work", **extra)
 

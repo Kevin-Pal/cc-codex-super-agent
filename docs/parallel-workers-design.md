@@ -1,5 +1,7 @@
 # 同项目并行 Worker：隔离执行与有序集成
 
+> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
+
 2026-11-02。状态：研究与建议方案，尚未安装自动 worktree 管理、资源租约、并发配置或原生项目关联适配。本轮没有放宽同工作树单写者，也没有新派发真实模型任务。
 
 ## 目前已经能做什么
@@ -41,7 +43,7 @@ Router 平常不改代码可降低一种冲突，仍需防不同 Router、人的
 
 用户要求在原项目下发现正式 Worker、同 thread 人工介入。若简单把 thread cwd 改为新 worktree，可能影响路径索引、规则读取或 GUI 分组；不能要求用户为每个 Worker 手动新建 Project 来掩盖适配问题。
 
-Codex 0.166.0 的 thread/start 与 turn/start 参数没有可设置的 projectId，但返回的 Thread 带 app-server 拥有的 `projectId`，`Project` 有多根 `roots[]`，并有 `thread/project/updated`、`project/changed` 通知；客户端没有设置归属的方法。2026-11-02 在一台实例上只读 `thread/list` 发现全部 thread 的 `projectId` 均为 null，Desktop 分组因此不能从该字段推断，需要在 Desktop 侧观察；该实例已有一个正式 Worker 以 sibling linked worktree 为 cwd 运行，可作为零风险观察样本（具体 ID 记在实例私有记录）。turn/start 的 cwd 覆盖会成为后续默认目录。[官方协议](https://learn.chatgpt.com/docs/app-server#start-a-turn) 支持该覆盖，但没有因此保证 Desktop 的原 Project 归属不变。优先调查原生 managed-worktree/Project 关联；若不能通过现有接口保持发现/介入，应把稳定会话入口与实际执行目标分开登记并做受控验证，不靠随意改 cwd 或猜 thread ID。
+历史探查曾将 thread/start 与 turn/start 的 projectId 能力概括为不可设置；2026-11-03 按实际CLI生成schema发现 ThreadStartParams 已有 projectId，不能继续沿用这个绝对结论。本次仍以固定cwd和实际客户端验收为主，未猜测跨访问端的Project ID映射。此前观察：，但返回的 Thread 带 app-server 拥有的 `projectId`，`Project` 有多根 `roots[]`，并有 `thread/project/updated`、`project/changed` 通知；客户端没有设置归属的方法。2026-11-02 在一台实例上只读 `thread/list` 发现全部 thread 的 `projectId` 均为 null，Desktop 分组因此不能从该字段推断，需要在 Desktop 侧观察；该实例已有一个正式 Worker 以 sibling linked worktree 为 cwd 运行，可作为零风险观察样本（具体 ID 记在实例私有记录）。turn/start 的 cwd 覆盖会成为后续默认目录。[官方协议](https://learn.chatgpt.com/docs/app-server#start-a-turn) 支持该覆盖，但没有因此保证 Desktop 的原 Project 归属不变。优先调查原生 managed-worktree/Project 关联；若不能通过现有接口保持发现/介入，应把稳定会话入口与实际执行目标分开登记并做受控验证，不靠随意改 cwd 或猜 thread ID。
 
 2026-11-02，另从 Desktop 专用接口只读核对现有样本：一个 sibling linked-worktree 正式 Worker 的应用层 Project ID 与原 checkout 的 Project ID 相同，执行 cwd 仍是 worktree。此例不需要增加第二根目录，说明原生返回 null 不能等同于 Desktop 未分组；没有目视截图，也不据此宣称任何新建/迁移方式均保持归属。具体 ID 与路径仅留实例回执。
 

@@ -1,5 +1,11 @@
 # Desktop visibility is separate from Worker lifecycle
 
+## 0.3.0 follow-up
+
+Two legacy formal Workers were repaired at idle through the native same-ID reload path. Both retained their original IDs and returned the central project cwd; the access-side Desktop project/thread API then associated both with the same attached parent Project. This is a current client-API observation, not a screenshot or a promise across every Desktop version. The old research checkout/artifacts were retained. New owned formal Workers cannot be created at a worktree/subdirectory instead of the Router entry.
+
+> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
+
 A formal Worker finishing a task should keep its native thread and framework registration. It is not automatically released, archived or deleted. An empty Desktop Project is not evidence that its Workers were removed.
 
 ## Four separate states

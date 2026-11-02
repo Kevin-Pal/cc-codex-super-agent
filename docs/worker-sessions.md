@@ -1,5 +1,7 @@
 # 三类会话、持续 Worker 与人工交流
 
+> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
+
 状态：本页是协作协议；0.2.0 已实现主要管理能力，实际验证与尚待验收的边界见 [验证范围](runtime-validation.md)。真实用户旧会话未被批量接管或改写；试点只使用专用会话。
 
 首版管理后续新建的临时/正式 Worker，以及用户明确指名交给 Router 的已有原生 session。后者不是批量迁移旧 exec。旧 exec 历史不迁移、不改元数据、不批量归档；将来如要收纳，另定只读索引或归档方案，不阻塞首版。

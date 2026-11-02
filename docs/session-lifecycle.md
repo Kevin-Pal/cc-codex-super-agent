@@ -1,5 +1,7 @@
 # 两类 Worker 与人的自建 session
 
+> 0.3.0: formal Workers now stay at their Router project entry; only temps may request managed worktree isolation. Shared knowledge, explicit external control, same-ID legacy repair and checked cleanup are specified in [project paths](project-paths.md). Earlier observations/proposals below retain their historical scope; the new contract supersedes conflicting cwd/worktree suggestions.
+
 本文说明源码快照中已实现的会话管理；安装前阅读 SETUP.md 和版本兼容记录。
 
 这是协作契约与当前设计，不把某个原生客户端版本的所有界面行为视为永久保证。临时/正式/个人与 easy/hard/xhard 是两个独立维度；一次性困难调查也可以用高档 temp，持续简单工作也可以复用正式 Worker。

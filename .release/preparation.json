@@ -2,7 +2,7 @@
   "schema_version": 2,
   "project": "cc-codex-super-agent",
   "phase": "publication-ready",
-  "snapshot_version": "0.2.3.post1",
+  "snapshot_version": "0.3.0",
   "license": "MIT",
   "runtime_exported": true,
   "skills_exported": true,

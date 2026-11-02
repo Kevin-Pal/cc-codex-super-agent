@@ -1,5 +1,34 @@
 # CC–Codex Super Agent
 
+Current source: **0.3.0**. [Components and installed changes](docs/framework-components.md) · [Paths, ownership and cleanup](docs/project-paths.md) · [Versioning](docs/versioning.md). Formal Workers stay at one project entry; only temps use optional managed worktrees.
+
+```mermaid
+flowchart LR
+  H[Person] --> CLI[Claude CLI]
+  CLI <--> R[Router: intent, guidance, acceptance, delivery]
+  subgraph RV[Router relationships]
+    F[Owned formal Workers: fixed project P]
+    T[Owned temps: P or managed worktree]
+    X[User-named external sessions: original owner and path]
+  end
+  R --> F
+  R --> T
+  R -. inspect or explicit transfer .-> X
+  F <--> N[Native Codex threads and turns]
+  T <--> N
+  X <--> N
+  H <--> D[Codex Desktop: formal chats and personal chats]
+  D <--> N
+  N --> C[Coordinator: JSON-RPC events, registry, results]
+  C --> K[Claude hooks: bounded context and wakeup]
+  K --> R
+  R --> O[Reviewed final report]
+  O --> H
+  M[Project P: shared rules and authoritative state] --> R
+  M --> F
+  M --> T
+```
+
 **Claude Code harness as Router. Codex harness as Worker.**
 
 An independent, rules-first collaboration workflow for people who use both tools: align intent with Claude Code, let it guide and review native Codex Workers, and intervene directly through Codex Desktop when useful.
@@ -26,7 +55,7 @@ Incremental synchronization, event-driven wakeups and reusing session context ar
 
 ## Try the source snapshot
 
-Snapshot **0.2.3.post1** includes the runtime, Router/Worker skills, an optional manual Pro-advisor skill, tests and reversible user installation. It targets Python 3.11+ on POSIX macOS/Linux. The native backend/control endpoint must already be available under the execution user; an ordinary CLI installation alone does not guarantee that endpoint.
+Snapshot **0.3.0** includes the runtime, Router/Worker skills, an optional manual Pro-advisor skill, tests and reversible user installation. It targets Python 3.11+ on POSIX macOS/Linux. The native backend/control endpoint must already be available under the execution user; an ordinary CLI installation alone does not guarantee that endpoint.
 
 ```sh
 git clone https://github.com/Kevin-Pal/cc-codex-super-agent.git CC-Codex_Super_Agent
@@ -44,9 +73,9 @@ Trusted Workers deliberately use broad native permissions with approvalPolicy=ne
 
 ## Evidence and limits
 
-The underlying 0.2.3 workflow has been exercised with Claude Code 2.1.316 and native Codex 0.166.0 on a Linux execution host with Mac Desktop Remote. Its 95 isolated regressions passed on macOS/Linux. Public-snapshot checks and installer adaptations are recorded in [validation](docs/runtime-validation.md). Do not infer all platform/GUI/model combinations are validated.
+The 0.3.0 implementation has been checked with Claude Code 2.1.316 and native Codex 0.166.0: Mac/Linux isolated regressions, a real isolated temp and checked cleanup, and same-ID project-entry reload probes. Public distribution checks, earlier Desktop Remote evidence and remaining limits are recorded in [validation](docs/runtime-validation.md). Do not infer all platform/GUI/model combinations are validated.
 
-Automatic worktree lifecycle/integration, structured question/approval forwarding, configurable concurrency and richer token metrics remain future work. Long-running tasks beyond the current wakeup window may need a later user turn or inbox check. Ephemeral sessions do not promise reconnection recovery.
+Managed temp worktree preparation and checked cleanup are implemented. Automatic branch integration, finer write coordination, structured question/approval forwarding, configurable concurrency and richer token metrics remain future work. Long-running tasks beyond the current wakeup window may need a later user turn or inbox check. Ephemeral sessions do not promise reconnection recovery.
 
 ## Design and contribution
 

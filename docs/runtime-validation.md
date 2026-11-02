@@ -1,5 +1,16 @@
 # 运行验证记录
 
+## 0.3.0 — 2026-11-03
+
+The shared implementation passed 125 isolated regressions on Mac Python3.13 and Linux Python3.12. The public source snapshot additionally passed all 130 tests on both systems, including distribution checks. A standard Git source archive was installed into a synthetic home on both systems: preview, preserved user settings/hooks, role/reference resolution, launcher without source PYTHONPATH, idempotence and rollback passed; no real model call was used for distribution checks. They cover fixed entry/creation rejection, canonical external adoption with preserved manual control, same-ID idle reload and crash visibility recovery, atomic Worker/project/resource registration, bad-environment scheduler isolation, transient transport recovery, native background response validation, cancelled-temp cleanup, tracked/untracked/ignored artifacts, unintegrated commits, real detached processes, and idle cleanup retries. Public distribution checks are additionally recorded with the public snapshot.
+
+A real native Codex 0.166.0 read-only easy temp ran in a new synthetic Git worktree with a separate coordinator state directory. Its authority remained at the central entry; the final marker was independently read and accepted. Cleanup initially retained the tree while native context processes were alive. After they exited, idle housekeeping removed only that registered clean checkout and kept the task result. One model task was used; no existing project Worker was dispatched by this validation.
+
+Separate no-model native probes established that an already-loaded thread ignored a resume cwd override. Explicit idle archive/unarchive followed by resume preserved the ID, reloaded instructionSources, persisted the new cwd, and returned the requested readOnly sandbox and never approval policy. Native protocol schema and the real temp exercised background-terminal list/data handling. Repair also protects existing descendants and human control; Desktop display still needs actual client observation.
+
+Claude reviewed the immutable implementation and then the first fixes in two read-only passes. Findings were implemented with targeted regressions and independently accepted by Codex. The review did not itself execute tests; source review, fake-native tests, real-native probes and instance deployment evidence remain separate. Instance IDs, logs, state backups and paths are private, not public fixtures. Current limitations include conservative same-tree single-writer dispatch, no automatic integration, no external owner-to-owner question bridge, no OS-wide enforcement of arbitrary Bash, and unsupported ephemeral reconnection.
+
+
 ## 2026-11-02 Desktop 发现边界后续复核
 
 仅做只读登记/原生索引/Desktop 专用列表核对：两个正式 Worker 已分别验收多轮任务，仍持久、未归档、空闲且未 released；子目录与 sibling worktree 的应用层 Project 归属均为空，用户报告父 Project 为空、Recents 可见。早前同一样本归原 Project 的记录保留为当时观察，不能推广为稳定保证。另一个“完成后消失”的条目缺少可定位标题/ID，未确定原因；未将它判为 temp 或删除。见 [排查说明](desktop-session-visibility.md)。没有更改 thread/cwd/Project、原生数据库、安装或 daemon，没有调用新的模型任务。
@@ -60,4 +71,4 @@ Mac 与 Linux 的隔离回归各 80 项通过（含本轮新增 9 项）。覆�
 - 独立 reviewer 从干净 thread 开始并关闭原生 memories 使用/生成；验收数据应给不可变快照，不能把两个模型意见一致当作正确。
 - 本轮没有性能/成本基准，不承诺节省比例；还需要日常任务反馈。GPU/大实验的资源约束应明确写进工作包，当前执行槽与写入互斥不等于 GPU 调度器。
 
-后续 Claude 可在 [目标与手段边界](claude-review-handoff.md) 内优化，并重跑受影响用例。未来公开版本从经过隐私/来源审查的阶段性快照发布，当前不公开。
+后续 Claude 可在 [目标与手段边界](claude-review-handoff.md) 内优化，并重跑受影响用例。公开版本按经过隐私/来源审查的阶段性快照维护；不自动同步私有开发历史。

@@ -5,3 +5,4 @@
 - 同方向续用正式 Worker，验收后默认保留闲置；主要 Worker 可 pin，不按空闲时长清退。一次性任务使用 temp。个人 session 只在用户指名时交给 Router。
 - 人可从 Codex Desktop 直接与同一 Worker 交流。续派前同步人工变化、项目知识与控制权；当前用户决定优先。
 - hard 为日常默认，easy 用于简单批量，xhard 用于关键难题；实际模型/effort从原生目录或用户可选codex-tier映射解析。Claude 档位由用户手选。
+Formal Workers share their Router project entry. Only temps may request managed worktree isolation; central project facts remain authoritative. User-named external sessions keep their original path and control; inspection is not adoption.

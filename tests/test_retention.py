@@ -38,6 +38,7 @@ class RetentionTests(unittest.TestCase):
         return name
 
     def open(self):
+        self.manager.register_router("router-a", "Design", str(self.project))
         with patch("shutil.which", return_value=None):
             return self.manager.open("router-a", "Design", str(self.project), "UI", stream="ui")
 

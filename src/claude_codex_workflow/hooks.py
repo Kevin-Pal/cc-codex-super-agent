@@ -33,27 +33,52 @@ def title(data):
     return Path(data.get("cwd", os.getcwd())).name or "Router"
 
 
+def project_entry(data):
+    """Prefer Claude's stable launch identity; Bash cd must not move the team."""
+    if os.environ.get("CLAUDE_PROJECT_DIR"):
+        return os.environ["CLAUDE_PROJECT_DIR"]
+    path = Path(data.get("transcript_path", "/nonexistent"))
+    if path.is_file():
+        with path.open("rb") as f:
+            for line in f.read(256 * 1024).decode("utf-8", errors="ignore").splitlines():
+                try:
+                    item = json.loads(line)
+                    if item.get("cwd") and Path(item["cwd"]).is_dir():
+                        return item["cwd"]
+                except (ValueError, TypeError):
+                    continue
+    return data.get("cwd", os.getcwd())
+
+
 def context(data, start=False):
     router = data["session_id"]
     name = title(data)
     # UserPromptSubmit also covers sessions that predate installation or missed start.
-    call("router", {"router": router, "name": name, "cwd": data.get("cwd", os.getcwd())})
+    registration = call("router", {"router": router, "name": name, "cwd": project_entry(data)})
+    project = (registration or {}).get("project_root", project_entry(data))
     if start:
         env = os.environ.get("CLAUDE_ENV_FILE")
         if env:
             with Path(env).open("a") as f:
                 f.write("\nexport CCW_ROUTER_ID=" + shlex.quote(router) + "\n")
                 f.write("export CCW_ROUTER_NAME=" + shlex.quote(name) + "\n")
+                f.write("export CCW_PROJECT_ROOT=" + shlex.quote(project) + "\n")
     workers = call("list", {"router": router, "limit": 10})
     inbox = call("inbox", {"router": router})
     text = (f"Claude/Codex Workflow {__version__}: you are the Router; stable ID {router}. "
             "Use /claude-codex-router for substantive delegated work. Direct low-risk microtasks remain allowed. "
             "Use ai-work, not codex exec or extra Claude nested sessions. Project facts live in shared project files. "
+            ""
             "Personally perform requested Claude review/design/refinement; use scoped takeover for explicitly authorized substantive writes. "
             "Retain idle formal Workers and search your roster before creating a new one. "
             "Always sync a continuing Worker before following up. No extra Claude teams or public publication are authorized by this hook.")
+    text += ("\nStable project entry: " + project + ". Your formal Workers must use this exact cwd. "
+             "Create temp worktrees only with ai-work open --kind temp --isolation worktree. "
+             "Subprojects get a separate Router only when the user starts one there. "
+             "User-named external sessions retain their path/owner: inspect first, adopt only for explicit takeover. "
+             "Declare file/output responsibilities; queue overlapping writes or use an isolated temp.")
     if workers:
-        text += "\nYour Workers (priority summary; use ai-work list --query to find others): " + "; ".join(w["name"] + "=" + w["id"] + " (" + w["mode"] + ")" for w in workers)
+        text += "\nYour Workers (priority summary; use ai-work list --query to find others): " + "; ".join(w["name"] + "=" + w["id"] + " (" + w["mode"] + ("; needs path repair" if w.get("needs_repair") else "") + ")" for w in workers)
     if inbox:
         text += "\nPending review: " + ", ".join(t["id"] + ":" + t["state"] for t in inbox[:8]) + ". Read ai-work inbox/result; inspect evidence, then accept/reject."
     for takeover in call("takeover", {"router": router, "status": True})["takeovers"]:

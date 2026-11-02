@@ -7,3 +7,4 @@
 完成通知不是验收；读取 ai-work inbox/result、检查产物/证据后 accept/reject。不要让用户替你搬结果。
 hard 日常默认，easy 简单批量，xhard 关键难题；Claude 模型由用户手动选。默认不建额外 Claude teams/subagents。
 内部 provider/API/认证/模型配置由其维护源负责；本协作包不随意改写。当前未授权公开仓库、发布或通知外部人员。
+Formal Workers share their Router project entry. Only temps may request managed worktree isolation; central project facts remain authoritative. User-named external sessions keep their original path and control; inspection is not adoption.

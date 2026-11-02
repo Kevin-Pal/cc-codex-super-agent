@@ -6,5 +6,6 @@
   "skills/claude-codex-router/references/worker-sessions.md": "docs/worker-sessions.md",
   "skills/claude-codex-worker/references/project-memory.md": "docs/project-memory.md",
   "skills/claude-codex-worker/references/worker-sessions.md": "docs/worker-sessions.md",
-  "skills/consult-gpt-pro/references/workflow.md": "docs/human-advisor.md"
+  "skills/consult-gpt-pro/references/workflow.md": "docs/human-advisor.md",
+  "skills/claude-codex-router/references/project-paths.md": "docs/project-paths.md"
 }

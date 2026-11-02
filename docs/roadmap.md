@@ -5,11 +5,13 @@
 - Accountable Claude Router, native persistent Workers, hidden ephemeral tasks and explicit personal-session adoption.
 - Shared project facts, bounded incremental synchronization, task/turn identities, structured state and final-answer-first results.
 - Router review and repair, human pause/manual control, safe idle restart and conservative unknown-outcome handling.
+- Fixed formal-team entry, optional managed temp worktrees, checked cleanup/discard and explicit legacy same-ID repair.
 - Owned-block user installation/rollback, role skills and optional manual Pro consultation.
 
 ## Next: evidence-led improvements
 
-- Separate stable project_root from execution_cwd, then validate two real Workers through worktree preparation, parallel execution, serial integration, combined checks and retention/cleanup.
+- Validate a complete two-real-Worker change through parallel work, serial branch integration, combined checks and retention; fixed project authority and managed temp preparation/checked cleanup are already implemented.
+- Add explicit file/resource write leases only with evidence that they improve on the current conservative same-tree writer queue.
 - Track concurrent documentation edits and shared external resources without treating a worktree as OS isolation.
 - Compact/paginated result views that avoid echoing a work package, typed artifact/evidence manifests and context budgets with escape hatches for review.
 - Privacy-preserving measurements of transferred text, duplicate inputs, latency and observed token usage; do not claim a saving percentage before measuring it.

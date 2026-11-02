@@ -80,6 +80,14 @@ class Store:
             self.db.execute("UPDATE tasks SET run_seconds=MAX(60,deadline-created) WHERE run_seconds IS NULL")
             self.db.execute("UPDATE tasks SET queue_deadline=deadline WHERE queue_deadline IS NULL")
             self.db.execute("UPDATE tasks SET started=updated,deadline=updated+run_seconds WHERE state='RUNNING' AND started IS NULL")
+            self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS worker_projects (
+                worker TEXT PRIMARY KEY,project_root TEXT NOT NULL,workspace TEXT);
+            CREATE TABLE IF NOT EXISTS workspaces (
+                id TEXT PRIMARY KEY,router TEXT NOT NULL,project_root TEXT NOT NULL,
+                repo TEXT NOT NULL,path TEXT NOT NULL,branch TEXT NOT NULL,base TEXT NOT NULL,
+                state TEXT NOT NULL,worker TEXT,created REAL NOT NULL);
+            """)
 
     def close(self):
         with self.lock:
@@ -140,6 +148,9 @@ class Store:
             row["activity"] = "busy" if row.pop("busy") else "needs_review" if row["pending_review"] else "idle"
             row["pinned"] = bool(row["pinned"])
             row["pending_review"] = bool(row["pending_review"])
+            project = self.one("SELECT project_root FROM worker_projects WHERE worker=?", (row["id"],))
+            row["project_root"] = project["project_root"] if project else row["cwd"]
+            row["needs_repair"] = row["kind"] == "worker" and row["origin"] == "worker" and str(Path(row["cwd"]).resolve()) != row["project_root"]
         return rows if limit is None else rows[:limit]
 
     def event(self, kind, worker=None, task=None, payload=None, key=None):
@@ -189,13 +200,19 @@ class Store:
             rows = self.db.execute("SELECT * FROM takeovers WHERE router=? AND released IS NULL", (router,)).fetchall()
             return [self._end_takeover(row, note, time.time()) for row in rows]
 
-    def register(self, thread_id, kind, router, name, cwd, tier="hard", permission="trusted-worker", stream=None, origin=None):
+    def register(self, thread_id, kind, router, name, cwd, tier="hard", permission="trusted-worker", stream=None, origin=None, project_root=None, workspace=None):
         if kind not in {"worker", "personal", "temp"}:
             raise ValueError("Invalid session kind")
         now = time.time()
-        self.execute("INSERT INTO workers(id,kind,origin,router,name,stream,cwd,tier,permission,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                     (thread_id, kind, origin or kind, router, name, stream, cwd, tier, permission, now, now))
-        self.event("registered", worker=thread_id, payload={"kind": kind, "router": router})
+        with self.lock, self.db:
+            self.db.execute("INSERT INTO workers(id,kind,origin,router,name,stream,cwd,tier,permission,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                            (thread_id, kind, origin or kind, router, name, stream, cwd, tier, permission, now, now))
+            if project_root:
+                self.db.execute("INSERT INTO worker_projects VALUES(?,?,?)", (thread_id, project_root, workspace))
+            if workspace:
+                self.db.execute("UPDATE workspaces SET worker=?,state='IN_USE' WHERE id=?", (thread_id, workspace))
+            self.db.execute("INSERT INTO events(worker,kind,payload,created) VALUES(?,?,?,?)",
+                            (thread_id, "registered", json.dumps({"kind": kind, "router": router}), now))
         return self.worker(thread_id)
 
     def enqueue(self, worker, router, key, prompt, authorization, model, effort, minutes=45, baseline=None, queue_minutes=45):

@@ -12,6 +12,7 @@ OpenAI 的[官方协议文档](https://learn.chatgpt.com/docs/app-server#message
 
 | 核对日期 | 框架运行版 | Claude Code CLI | Codex CLI | 实际连接的原生后端 | 验证范围 |
 | --- | --- | --- | --- | --- | --- |
+| 2026-11-03 | 0.3.0 | 2.1.316 review CLI | 0.166.0 | Same existing native backend; generated schema and real protocol probes | Mac/Linux130 public-snapshot tests (125 shared), clean Git source-archive installation/rollback; real isolated read-only temp/cleanup and same-ID/cwd/policy reload; GUI build not collected |
 | 2026-11-02 | 0.2.3.post1 源码快照 | 基础组合如下一行 | 基础组合如下一行 | 沿用已验证适配，无新增真实模型调用 | Mac/Linux各100项隔离回归，包括公开安装保留性与发布检查；源码归档安装单独验证 |
 | 2026-11-02 | 0.2.3 | 2.1.316 | 0.166.0 | initialize 报告 Codex Desktop/0.166.0，Linux | 原生只读连接、最终 daemon/current 一致；既有真实 Router 交互由用户回收；Mac/Linux 各95项隔离假原生端回归 |
 

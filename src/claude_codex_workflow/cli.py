@@ -22,20 +22,37 @@ def parser():
     action.add_argument("--restart", action="store_true")
     daemon.add_argument("--when-idle", action="store_true")
     daemon.add_argument("--timeout", type=float, default=300)
-    for name in ["open", "sync", "send", "adopt", "list", "result", "inbox", "review", "cancel", "control", "events", "direct", "router", "steer", "takeover"]:
+    for name in ["open", "sync", "send", "adopt", "list", "result", "inbox", "review", "cancel", "control", "events", "direct", "router", "steer", "takeover", "inspect", "repair", "workspace"]:
         c = sub.add_parser(name)
         c.add_argument("--router", default=os.environ.get("CCW_ROUTER_ID") or os.environ.get("CLAUDE_CODE_SESSION_ID"))
         if name in {"open", "adopt", "router"}:
             c.add_argument("--router-name", default=os.environ.get("CCW_ROUTER_NAME") or "Router")
         if name in {"open", "router"}:
-            c.add_argument("--cwd", default=os.getcwd())
+            c.add_argument("--cwd", default=None if name == "open" else os.environ.get("CCW_PROJECT_ROOT") or os.getcwd())
+        if name == "router":
+            c.add_argument("--rebind", action="store_true")
+            c.add_argument("--reason")
         if name == "open":
             c.add_argument("--direction", required=True)
             c.add_argument("--stream")
             c.add_argument("--kind", choices=["worker", "temp"], default="worker")
             c.add_argument("--tier", choices=["easy", "hard", "xhard"], default="hard")
             c.add_argument("--permission", choices=["trusted-worker", "independent-review"], default="trusted-worker")
-        if name in {"sync", "send", "control", "steer"}:
+            c.add_argument("--isolation", choices=["none", "worktree"], default="none")
+            c.add_argument("--repo")
+            c.add_argument("--base")
+        if name == "inspect":
+            c.add_argument("thread_id")
+        if name == "repair":
+            c.add_argument("--reason", required=True)
+            c.add_argument("--reload", action="store_true")
+        if name == "workspace":
+            c.add_argument("workspace_id", nargs="?")
+            c.add_argument("--cleanup", action="store_true")
+            c.add_argument("--discard", action="store_true")
+            c.add_argument("--forget", action="store_true")
+            c.add_argument("--reason")
+        if name in {"sync", "send", "control", "steer", "repair"}:
             c.add_argument("worker_id")
         if name == "sync":
             c.add_argument("--history", action="store_true")
@@ -122,6 +139,10 @@ def main(argv=None):
         else:
             if command != "doctor" and not a.get("router"):
                 raise ValueError("Router ID missing: use --router, CCW_ROUTER_ID or CLAUDE_CODE_SESSION_ID")
+            if command == "open" and a.get("repo"):
+                a["repo"] = str(Path(a["repo"]).expanduser().resolve(strict=True))
+            if command in {"open", "router"} and a.get("cwd"):
+                a["cwd"] = str(Path(a["cwd"]).expanduser().resolve(strict=True))
             if command in {"send", "steer"}:
                 path = a.pop("file")
                 a["prompt"] = path.read_text() if path else a.pop("text")

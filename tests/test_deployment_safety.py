@@ -34,6 +34,7 @@ class LifecycleSafetyTests(unittest.TestCase):
         self.manager.shutdown = lambda: self.shutdown.append(True)
 
     def opened(self, kind="worker", stream="one", router="router-a"):
+        self.manager.register_router(router, "Project", str(self.project))
         with patch("shutil.which", return_value=None):
             return self.manager.open(router, "Project", str(self.project), stream, stream=stream, kind=kind)
 

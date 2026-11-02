@@ -14,6 +14,7 @@ from pathlib import Path
 from .rpc import NativeClient, RpcError
 from .paths import write_overlap
 from .store import Store, TERMINAL
+from . import workspaces
 
 RUNTIME_RELEASE = str(Path(__file__).resolve().parents[2])
 
@@ -65,6 +66,24 @@ def messages(turn):
     return result
 
 
+def native_policy(permission, kind):
+    params = {"approvalPolicy": "never", "sandbox": "read-only" if permission == "independent-review" else "danger-full-access",
+              "config": {}, "developerInstructions": "You are a Codex Worker coordinated by Claude Code. Follow the current delegated task and authentic direct human instructions. Keep shared project knowledge in project files. Do not spawn agents or publish/delete existing data/change production unless the task authorizes it. A broad sandbox is a capability, not authorization. Return observed evidence and unresolved issues; the Router owns acceptance."}
+    if permission == "independent-review" or kind == "temp":
+        params["config"].update({"memories.use_memories": False, "memories.generate_memories": False})
+    return params
+
+
+def missing_thread(error):
+    try:
+        if json.loads(str(error)).get("code") == -32601:
+            return False
+    except (ValueError, AttributeError):
+        pass
+    text = str(error).lower()
+    return any(s in text for s in ("thread", "rollout")) and any(s in text for s in ("not loaded", "not found", "no rollout"))
+
+
 class Manager:
     def __init__(self, root, native_socket=None, client=None):
         self.store = Store(root)
@@ -79,6 +98,7 @@ class Manager:
         self.client = client or NativeClient(self.native_socket, self.on_event)
         self.model_cache = None
         self.last_scan = 0
+        self.last_cleanup = 0
         self.scheduler = threading.Thread(target=self._schedule, daemon=True)
         self.recover()
 
@@ -92,6 +112,28 @@ class Manager:
             self.scheduler.join(timeout=3)
         if not self.scheduler.is_alive():
             self.store.close()
+
+    def transient(self, error):
+        return self.client.closed or isinstance(error, (TimeoutError, ConnectionError)) or any(
+            s in str(error).lower() for s in ("connection lost", "connection closed", "connection is unavailable", "native connection unavailable"))
+
+    def background_clear(self, worker_id, turn=None):
+        jobs = self.client.request("thread/backgroundTerminals/list", {"threadId": worker_id, "limit": 1})
+        if not isinstance(jobs, dict) or not isinstance(jobs.get("data"), list):
+            raise ValueError("Native background response shape is unsupported; retain the workspace")
+        clear = not jobs["data"] and not jobs.get("nextCursor")
+        if clear and turn is not None:
+            self.store.execute("INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                               ("background-clear:" + worker_id, turn))
+        return clear
+
+    def restore_visibility(self, worker_id):
+        try:
+            self.client.request("thread/unarchive", {"threadId": worker_id})
+        except RpcError as error:
+            if "no archived rollout" not in str(error).lower():
+                raise
+            self.client.request("thread/read", {"threadId": worker_id})
 
     def owned(self, worker_id, router):
         worker = self.store.worker(worker_id)
@@ -130,13 +172,204 @@ class Manager:
             raise ValueError("Tier mapping is unavailable or incompatible; no silent family fallback")
         return model, effort
 
-    def register_router(self, router, name, cwd):
+    def register_router(self, router, name, cwd, rebind=False, reason=None):
         if not router or len(router) > 200:
             raise ValueError("Stable Router ID is required")
         cwd = str(Path(cwd).expanduser().resolve(strict=True))
+        prior = self.store.one("SELECT value FROM meta WHERE key=?", ("project:" + router,))
+        project = prior["value"] if prior else cwd
+        if rebind:
+            if not reason or not reason.strip():
+                raise ValueError("An explicit project rebind needs a reason")
+            if self.store.one("SELECT id FROM workspaces WHERE router=? AND state!='CLEANED'", (router,)):
+                raise ValueError("Resolve managed workspaces before rebinding the project")
+            for worker in self.store.rows("SELECT * FROM workers WHERE router=? AND mode!='released'", (router,)):
+                if worker["active_turn"] or self.store.one("SELECT id FROM tasks WHERE worker=? AND state IN ('QUEUED','DISPATCHING','RUNNING')", (worker["id"],)):
+                    raise ValueError("Finish pending work before rebinding the project")
+                native = self.client.request("thread/read", {"threadId": worker["id"]})["thread"]
+                if native.get("status", {}).get("type") == "active":
+                    raise ValueError("A native turn is active; project rebind refused")
+            project = cwd
+        self.store.execute("INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                           ("project:" + router, project))
         self.store.execute("INSERT INTO routers VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,cwd=excluded.cwd,updated=excluded.updated",
-                           (router, name, cwd, time.time()))
-        return {"router": router, "name": name, "cwd": cwd}
+                           (router, name, project, time.time()))
+        for worker in self.store.rows("SELECT * FROM workers WHERE router=? AND origin IN ('worker','temp')", (router,)):
+            self.store.execute("INSERT INTO worker_projects VALUES(?,?,NULL) ON CONFLICT(worker) DO UPDATE SET project_root=excluded.project_root",
+                               (worker["id"], project))
+        if rebind:
+            self.store.event("project_rebound", payload={"router": router, "project_root": project, "reason": reason})
+        return {"router": router, "name": name, "cwd": project, "project_root": project,
+                "observed_cwd": cwd, "cwd_drift": project != cwd}
+
+    def project(self, worker):
+        row = self.store.one("SELECT * FROM worker_projects WHERE worker=?", (worker["id"],))
+        return row or {"project_root": worker["cwd"], "workspace": None}
+
+    def check_path(self, worker, native=None):
+        if not Path(worker["cwd"]).is_dir():
+            raise ValueError("Worker execution directory is missing; inspect its registered environment")
+        native = native or self.client.request("thread/read", {"threadId": worker["id"]})["thread"]
+        if str(Path(native["cwd"]).resolve()) != str(Path(worker["cwd"]).resolve()):
+            raise ValueError("Native cwd changed; inspect and explicitly repair the original thread before dispatch")
+        if worker["kind"] == "worker" and worker["origin"] == "worker" and self.project(worker)["project_root"] != worker["cwd"]:
+            raise ValueError("Formal Worker is outside its Router project; use repair, never open a replacement")
+
+    def inspect(self, thread_id, router):
+        # Read-only collaboration discovery. No ownership, cwd, permissions or turns change.
+        native = self.client.request("thread/read", {"threadId": thread_id})["thread"]
+        prior = self.store.one("SELECT router,kind,mode FROM workers WHERE id=?", (thread_id,))
+        return {"thread_id": thread_id, "name": native.get("name"), "cwd": native["cwd"],
+                "status": native.get("status"), "registration": prior,
+                "control_changed": False, "requesting_router": router}
+
+    def repair(self, worker_id, router, reason, reload=False):
+        worker = self.owned(worker_id, router)
+        if worker["kind"] != "worker" or worker["origin"] != "worker":
+            raise ValueError("Only a Router-created formal Worker can be reanchored")
+        if worker["mode"] in {"manual", "paused"}:
+            raise ValueError("Return human control before path repair")
+        if not reason or not reason.strip():
+            raise ValueError("Path repair needs an explicit reason")
+        if worker["active_turn"] or self.store.one("SELECT id FROM tasks WHERE worker=? AND state IN ('QUEUED','DISPATCHING','RUNNING')", (worker_id,)):
+            raise ValueError("Finish pending work before path repair")
+        native = self.client.request("thread/read", {"threadId": worker_id})["thread"]
+        if native.get("status", {}).get("type") == "active":
+            raise ValueError("Native turn is active; path repair refused")
+        project = self.project(worker)["project_root"]
+        if worker["stream"] and self.store.one("SELECT id FROM workers WHERE router=? AND stream=? AND kind='worker' AND mode!='released' AND id!=?", (router, worker["stream"], worker_id)):
+            raise ValueError("Another live Worker has the same stream; resolve ownership before repair")
+        params = {"threadId": worker_id, "cwd": project, "excludeTurns": True, **native_policy(worker["permission"], worker["kind"])}
+        response = self.client.request("thread/resume", params)
+        if str(Path(response["thread"]["cwd"]).resolve()) != project and reload:
+            if self.client.request("thread/read", {"threadId": worker_id})["thread"].get("status", {}).get("type") == "active":
+                raise ValueError("A native turn started; reload refused")
+            children = self.client.request("thread/list", {"ancestorThreadId": worker_id, "limit": 1,
+                "sourceKinds": ["cli", "vscode", "exec", "appServer", "subAgent", "subAgentReview",
+                                "subAgentCompact", "subAgentThreadSpawn", "subAgentOther", "unknown"]})
+            if not isinstance(children.get("data"), list):
+                raise ValueError("Cannot verify descendant sessions before reload")
+            if children["data"] or children.get("nextCursor"):
+                raise ValueError("Reload could archive descendant sessions; coordinate them explicitly first")
+            self.store.event("path_reload_started", worker=worker_id, payload={"old_cwd": worker["cwd"], "project_root": project, "reason": reason})
+            self.store.execute("INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                               ("path-reload:" + worker_id, json.dumps({"project_root": project, "old_cwd": worker["cwd"], "reason": reason})))
+            try:
+                self.client.request("thread/archive", {"threadId": worker_id})
+                self.client.request("thread/unarchive", {"threadId": worker_id})
+                response = self.client.request("thread/resume", params)
+            except Exception as error:
+                # Restore visibility if a later step failed; never create/fork another ID.
+                try:
+                    self.restore_visibility(worker_id)
+                    self.store.execute("DELETE FROM meta WHERE key=?", ("path-reload:" + worker_id,))
+                except Exception:
+                    pass
+                self.store.event("path_reload_failed", worker=worker_id, payload={"error": str(error)[:500]})
+                raise
+        if response["thread"]["id"] != worker_id or str(Path(response["thread"]["cwd"]).resolve()) != project:
+            raise ValueError("Native backend did not confirm the same thread at the intended project; inspect and use repair --reload only in an idle window")
+        if response.get("approvalPolicy", "never") != "never":
+            raise ValueError("Native approval policy differs after reload; inspect before dispatch")
+        sandbox = response.get("sandbox", {})
+        if sandbox and sandbox.get("type") != ("readOnly" if worker["permission"] == "independent-review" else "dangerFullAccess"):
+            raise ValueError("Native sandbox differs after reload; inspect before dispatch")
+        self.store.execute("UPDATE workers SET cwd=?,updated=? WHERE id=?", (project, time.time(), worker_id))
+        self.store.event("path_repaired", worker=worker_id, payload={"old_cwd": worker["cwd"], "project_root": project, "reason": reason})
+        self.store.execute("DELETE FROM meta WHERE key=?", ("path-reload:" + worker_id,))
+        return {"worker": self.store.worker(worker_id), "instruction_sources": response.get("instructionSources", []), "sync": self.sync(worker_id, router)}
+
+    def workspace(self, router, workspace_id=None, cleanup=False, discard=False, forget=False, reason=None):
+        if sum(bool(x) for x in (cleanup, discard, forget)) > 1:
+            raise ValueError("Choose cleanup, discard or forget separately")
+        if workspace_id is None:
+            if cleanup or discard or forget:
+                raise ValueError("A workspace ID is required")
+            return self.store.rows("SELECT * FROM workspaces WHERE router=? ORDER BY created", (router,))
+        row = self.store.one("SELECT * FROM workspaces WHERE id=? AND router=?", (workspace_id, router))
+        if not row:
+            raise ValueError("Unknown owned workspace")
+        if (discard or forget) and (not reason or not reason.strip()):
+            raise ValueError("Discard/forget requires an explicit inspection reason")
+        if row["state"] == "CLEANED":
+            return row
+        if forget:
+            if row["worker"]:
+                worker = self.store.worker(row["worker"])
+                if worker["active_turn"] or worker["mode"] in {"manual", "paused"} or self.store.one("SELECT id FROM tasks WHERE worker=? AND state IN ('QUEUED','RUNNING','DISPATCHING')", (worker["id"],)):
+                    raise ValueError("Finish pending work and return human control before forgetting a workspace")
+            registered = Path(row["repo"]).exists() and row["path"] in workspaces.git(row["repo"], "worktree", "list", "--porcelain")
+            if Path(row["path"]).exists() or registered:
+                raise ValueError("Forget requires both the path and Git worktree registration to be absent")
+            self.store.execute("UPDATE workspaces SET state='CLEANED' WHERE id=?", (workspace_id,))
+            if row["worker"]:
+                self.store.execute("UPDATE workers SET mode='released' WHERE id=?", (row["worker"],))
+            self.store.event("workspace_forgotten", worker=row["worker"], payload={"resource": row, "reason": reason, "physical_changes": False})
+            return self.workspace(router, workspace_id)
+        if not cleanup and not discard:
+            return row
+        if row["state"] in {"STARTING", "UNCERTAIN", "NATIVE_CREATED"}:
+            raise ValueError("Native creation outcome is unresolved; locate/stop the exact thread before manual recovery, never delete this environment blindly")
+        if row["worker"]:
+            worker = self.store.worker(row["worker"])
+            if worker["active_turn"] or worker["mode"] in {"manual", "paused"}:
+                raise ValueError("Workspace is active or under human control")
+            tasks = self.store.rows("SELECT * FROM tasks WHERE worker=? ORDER BY created,id", (worker["id"],))
+            if discard and any(t["state"] not in TERMINAL for t in tasks):
+                raise ValueError("Finish/cancel pending tasks before discarding a workspace")
+            if not discard and (not tasks or any(t["state"] != "ACCEPTED" for t in tasks)):
+                raise ValueError("Accept all task results before workspace cleanup")
+            try:
+                native = self.client.request("thread/read", {"threadId": worker["id"]})["thread"]
+                if native.get("status", {}).get("type") == "active":
+                    raise ValueError("Native task still active")
+                if not self.background_clear(worker["id"]):
+                    raise ValueError("Native background terminals still exist; stop/verify them before cleanup")
+            except RpcError as error:
+                if not missing_thread(error):
+                    raise
+                snapshot = self.store.one("SELECT value FROM meta WHERE key=?", ("background-clear:" + worker["id"],))
+                last_turn = next((t["turn"] for t in reversed(tasks) if t["turn"]), "unused")
+                if not tasks or not snapshot or snapshot["value"] != last_turn:
+                    raise ValueError("Native background state is unknown; workspace retained")
+            # Process/open-file checks happen in workspaces.remove.
+        result = workspaces.remove(self.store, row)
+        if row["worker"]:
+            self.store.execute("UPDATE workers SET mode='released' WHERE id=?", (row["worker"],))
+            try:
+                self.client.request("thread/unsubscribe", {"threadId": row["worker"]})
+            except RpcError:
+                pass  # No active turn/jobs remain; a temp may already be unloaded.
+        self.store.event("workspace_cleaned", worker=row["worker"], payload=result)
+        return result
+
+    def review(self, task_id, router, accepted, note):
+        task = self.store.decide(task_id, router, accepted, note)
+        resource = self.project(self.store.worker(task["worker"]))["workspace"]
+        if accepted and resource:
+            try:
+                task["workspace_cleanup"] = self.workspace(router, resource, cleanup=True)
+            except (ValueError, subprocess.SubprocessError, OSError, RpcError) as error:
+                task["workspace_retained"] = str(error)[:1000]
+        return task
+
+    def worker_overlap(self, left, right):
+        if not write_overlap(left["cwd"], right["cwd"]):
+            return False
+        for isolated, other in [(left, right), (right, left)]:
+            resource = self.project(isolated)["workspace"]
+            if resource:
+                row = self.store.one("SELECT * FROM workspaces WHERE id=? AND state!='CLEANED'", (resource,))
+                if row:
+                    try:
+                        path = workspaces.verified(row)
+                    except (ValueError, subprocess.SubprocessError, OSError):
+                        return True
+                    if not Path(other["cwd"]).resolve().is_relative_to(path):
+                        # Only the registered main-project writer excludes this managed namespace.
+                        if other["cwd"] == row["project_root"] and other["kind"] == "worker":
+                            return False
+        return True
 
     def takeover(self, router, scope=None, reason=None, hours=2, release=False, status=False, note=None):
         with self.lock:
@@ -217,44 +450,81 @@ class Manager:
                 events.append({**payload, "seq": row["seq"], "kind": row["kind"], "event_time": row["created"]})
         return events
 
-    def open(self, router, router_name, cwd, direction, stream=None, kind="worker", tier="hard", permission="trusted-worker"):
+    def open(self, router, router_name, cwd, direction, stream=None, kind="worker", tier="hard", permission="trusted-worker", isolation="none", repo=None, base=None):
         with self.lock:
             if self.draining:
                 raise ValueError("Coordinator is stopping for restart; retry after it restarts")
+            binding = self.store.one("SELECT value FROM meta WHERE key=?", ("project:" + router,))
+            if not binding:
+                raise ValueError("Register the Router launch project first (hook or ai-work router --cwd PROJECT); open never guesses a project")
+            cwd = cwd or binding["value"]
             registration = self.register_router(router, router_name, cwd)
-            cwd = registration["cwd"]
+            if str(Path(cwd).expanduser().resolve()) != registration["project_root"]:
+                raise ValueError("Worker creation must use the Router project path; task directories do not create a new team")
+            cwd = project = registration["project_root"]
             if kind not in {"worker", "temp"}:
                 raise ValueError("Existing personal sessions use adopt, not open")
             if permission not in {"trusted-worker", "independent-review"}:
                 raise ValueError("Unknown permission template")
+            if isolation not in {"none", "worktree"} or isolation != "none" and kind != "temp":
+                raise ValueError("Only temporary Workers may request worktree isolation")
+            if isolation == "none" and (repo is not None or base is not None):
+                raise ValueError("Repository/base options require temp worktree isolation")
             if kind == "worker":
                 if not stream:
                     raise ValueError("A stable workstream key is required for a persistent Worker")
-                prior = self.store.one("SELECT * FROM workers WHERE router=? AND cwd=? AND stream=? AND kind='worker' AND mode!='released'", (router, cwd, stream))
+                candidates = self.store.rows("SELECT * FROM workers WHERE router=? AND stream=? AND kind='worker' AND mode!='released'", (router, stream))
+                if len(candidates) > 1:
+                    raise ValueError("Multiple legacy Workers have this stream; inspect exact IDs and release the unwanted registration before repair/reuse")
+                prior = candidates[0] if candidates else None
                 if prior:
+                    self.check_path(prior)
                     return {"worker": prior, "sync": self.sync(prior["id"], router)}
             model, effort = self.tier(tier)
-            params = {"cwd": cwd, "model": model, "approvalPolicy": "never",
-                      "sandbox": "read-only" if permission == "independent-review" else "danger-full-access",
+            resource = None
+            if isolation == "worktree":
+                pending = self.store.one("SELECT id FROM workspaces WHERE router=? AND worker IS NULL AND state!='CLEANED'", (router,))
+                if pending:
+                    raise ValueError("Resolve prepared/uncertain workspace before another open: " + pending["id"])
+                resource, cwd = workspaces.prepare(self.store, router, project, repo, base)
+            params = {"cwd": cwd, "model": model, **native_policy(permission, kind),
                       "ephemeral": kind == "temp", "serviceName": "claude-codex-workflow",
-                      "config": {"model_reasoning_effort": effort},
-                      "developerInstructions": "You are a Codex Worker coordinated by Claude Code. Follow the current delegated task and authentic direct human instructions. Keep shared project knowledge in project files. Do not spawn agents or publish/delete existing data/change production unless the task authorizes it. A broad sandbox is a capability, not authorization. Return observed evidence and unresolved issues; the Router owns acceptance."}
-            if permission == "independent-review" or kind == "temp":
-                params["config"].update({"memories.use_memories": False, "memories.generate_memories": False})
-            response = self.client.request("thread/start", params)
+                      }
+            params["config"]["model_reasoning_effort"] = effort
+            if resource:
+                self.store.execute("UPDATE workspaces SET state='STARTING' WHERE id=?", (resource,))
+            try:
+                response = self.client.request("thread/start", params)
+            except Exception as error:
+                if resource:
+                    self.store.execute("UPDATE workspaces SET state='UNCERTAIN' WHERE id=?", (resource,))
+                    raise ValueError("Native start failed/uncertain; workspace retained: " + resource + ". Inspect native work before retry/cleanup. " + str(error)) from error
+                raise
             native = response["thread"]
+            if resource:
+                self.store.execute("UPDATE workspaces SET state='NATIVE_CREATED' WHERE id=?", (resource,))
             name = "" if kind == "temp" else worker_name(router_name, direction)
             if name and self.store.one("SELECT id FROM workers WHERE name=?", (name,)):
                 name += "_" + native["id"][-6:]
             if name:
                 self.client.request("thread/name/set", {"threadId": native["id"], "name": name})
-            worker = self.store.register(native["id"], kind, router, name, cwd, tier, permission, stream)
+            try:
+                worker = self.store.register(native["id"], kind, router, name, cwd, tier, permission, stream,
+                                             project_root=project, workspace=resource)
+            except Exception as error:
+                if resource:
+                    raise ValueError("Registration failed; retain workspace " + resource + " and native thread " + native["id"] + " for inspection") from error
+                raise
             return {"worker": worker, "sync": self.sync(worker["id"], router),
                     "instruction_sources": response.get("instructionSources", []), "model": model, "effort": effort}
 
     def adopt(self, thread_id, router, router_name, from_router=None):
         with self.lock:
+            if not self.store.one("SELECT value FROM meta WHERE key=?", ("project:" + router,)):
+                raise ValueError("Register the requesting Router project before external adoption")
             prior = self.store.one("SELECT * FROM workers WHERE id=?", (thread_id,))
+            if prior and prior["router"] == router and prior["origin"] == "worker" and prior["mode"] != "released":
+                return {"worker": prior, "sync": self.sync(thread_id, router)}
             if prior and prior["router"] != router:
                 if from_router != prior["router"]:
                     raise ValueError("Name the previous Router explicitly for takeover")
@@ -266,10 +536,15 @@ class Manager:
             if native.get("status", {}).get("type") == "active":
                 raise ValueError("Thread is active; wait or explicitly coordinate its active turn first")
             self.register_router(router, router_name, native["cwd"])
+            cwd = str(Path(native["cwd"]).expanduser().resolve(strict=True))
             if prior:
-                self.store.execute("UPDATE workers SET router=?,mode='automatic',updated=? WHERE id=?", (router, time.time(), thread_id))
+                origin = prior["origin"] if prior["router"] == router else "user-selected"
+                mode = prior["mode"] if prior["router"] == router and prior["mode"] != "released" else "automatic"
+                self.store.execute("UPDATE workers SET router=?,cwd=?,origin=?,mode=?,updated=? WHERE id=?", (router, cwd, origin, mode, time.time(), thread_id))
             else:
-                self.store.register(thread_id, "personal", router, native.get("name") or "", native["cwd"], origin="user-selected")
+                self.store.register(thread_id, "personal", router, native.get("name") or "", cwd, origin="user-selected")
+            project = self.store.one("SELECT value FROM meta WHERE key=?", ("project:" + router,))["value"] if prior and prior["router"] == router and prior["origin"] == "worker" else cwd
+            self.store.execute("INSERT INTO worker_projects VALUES(?,?,NULL) ON CONFLICT(worker) DO UPDATE SET project_root=excluded.project_root,workspace=NULL", (thread_id, project))
             self.client.request("thread/resume", {"threadId": thread_id, "excludeTurns": True})
             self.store.event("adopted", worker=thread_id, payload={"router": router, "previous_router": from_router})
             return {"worker": self.store.worker(thread_id), "sync": self.sync(thread_id, router)}
@@ -288,7 +563,11 @@ class Manager:
         turns = self.turns(worker)
         own = {r["turn"] for r in self.store.rows("SELECT turn FROM tasks WHERE worker=? AND turn IS NOT NULL", (worker_id,))}
         external = [{"id": t["id"], "status": t.get("status"), "messages": messages(t)} for t in turns if t["id"] not in own]
-        files = knowledge(worker["cwd"])
+        project = self.project(worker)
+        files = knowledge(project["project_root"])
+        if project["workspace"]:
+            files["execution_head"] = workspaces.git(worker["cwd"], "rev-parse", "HEAD")
+            files["execution_status"] = digest(workspaces.git(worker["cwd"], "status", "--porcelain", "--untracked-files=normal"))
         direct_work = self.takeover_events(worker["cwd"])
         # A baseline captured during a microtask is provisional: the file may
         # change after sync without a Git commit or shared-memory edit. Expiry
@@ -321,6 +600,7 @@ class Manager:
         return {"thread_id": worker_id, "sync_token": token, "status": native.get("status"),
                 "external_turn_ids": [turn["id"] for turn in turns if turn["id"] not in own],
                 "mode": worker["mode"], "project_knowledge": files,
+                "project_root": project["project_root"], "execution_cwd": worker["cwd"], "workspace": project["workspace"],
                 "active_microtasks": microtasks,
                 "recent_turns": rendered, "history_truncated": len(rendered) < len(selected) or budget <= 0,
                 "router_direct_work": [e for e in direct_work if history or e["seq"] > acknowledged.get("_takeover_seq", 0)],
@@ -331,6 +611,7 @@ class Manager:
             if self.draining:
                 raise ValueError("Coordinator is stopping for restart; retry after it restarts")
             worker = self.owned(worker_id, router)
+            self.check_path(worker)
             if worker["mode"] in {"paused", "manual"}:
                 raise ValueError("Worker is paused or under human control; resume explicitly")
             if worker["permission"] != "independent-review" and self.takeover_conflicts(worker["cwd"]):
@@ -376,6 +657,14 @@ class Manager:
             self.store.execute("UPDATE workers SET name=? WHERE id=?", (p.get("threadName", ""), worker_id))
 
     def recover(self):
+        for row in self.store.rows("SELECT * FROM meta WHERE key LIKE 'path-reload:%'"):
+            worker_id = row["key"][len("path-reload:"):]
+            try:
+                self.restore_visibility(worker_id)
+                self.store.event("path_reload_interrupted", worker=worker_id, payload={"visibility_restored": True, "next": "inspect and repair the same ID"})
+                self.store.execute("DELETE FROM meta WHERE key=?", (row["key"],))
+            except Exception as error:
+                self.store.event("path_reload_failed", worker=worker_id, payload={"error": str(error)[:500]})
         # Never replay an uncertain dispatch. Reconnect to the same native thread.
         for worker in self.store.rows("SELECT * FROM workers WHERE mode!='released'"):
             try:
@@ -424,6 +713,10 @@ class Manager:
                     self.store.event("late_result", worker=worker["id"], task=task["id"], payload={"native_status": status}, key="late:" + task["id"])
                 if worker["kind"] == "temp":
                     if not active_turn:
+                        try:
+                            self.background_clear(worker["id"], turn["id"])
+                        except Exception:
+                            pass  # Cleanup must obtain positive background evidence later.
                         self.store.execute("UPDATE workers SET mode='released' WHERE id=? AND mode NOT IN ('paused','manual')", (worker["id"],))
                         self.client.request("thread/unsubscribe", {"threadId": worker["id"]})
             elif not task and worker["id"] not in self.dispatching:
@@ -457,14 +750,25 @@ class Manager:
         if self.draining:
             return False
         worker = self.store.worker(task["worker"])
+        try:
+            self.check_path(worker)
+        except ValueError as error:
+            self.store.finish(task["id"], "BLOCKED", error=str(error))
+            return False
         if worker["mode"] != "automatic":
             return False
         if worker["permission"] != "independent-review" and self.write_blockers(worker["cwd"]):
             return False  # A takeover or a short Router microtask lease owns this worktree for now.
         if worker["permission"] != "independent-review" and any(
-                w["id"] != worker["id"] and write_overlap(w["cwd"], worker["cwd"]) for w in self.writers()):
+                w["id"] != worker["id"] and self.worker_overlap(w, worker) for w in self.writers()):
             return False
-        view = self.sync(worker["id"], worker["router"])
+        try:
+            view = self.sync(worker["id"], worker["router"])
+        except (ValueError, OSError, subprocess.SubprocessError) as error:
+            if self.transient(error):
+                return False
+            self.store.finish(task["id"], "BLOCKED", error="Worker sync failed; inspect its environment: " + str(error)[:1000])
+            return False
         if view.get("status", {}).get("type") == "active":
             return False
         if view["sync_token"] != task["baseline"]:
@@ -472,8 +776,10 @@ class Manager:
             return False
         self.store.execute("UPDATE tasks SET state='DISPATCHING',updated=? WHERE id=? AND state='QUEUED'", (time.time(), task["id"]))
         text = ("[CCW task " + task["id"] + "]\ninvocation: delegated\nAuthorization: " + task["authorization"] +
-                "\nRead current project AGENTS.md (or existing CLAUDE.md when no AGENTS.md exists) and relevant shared state before acting. Indexed knowledge: " + ", ".join(view["project_knowledge"]) + ". Use available skills only when needed.\n" + task["prompt"] +
+                "\nShared project authority: " + view["project_root"] + ". Execution cwd: " + worker["cwd"] +
+                ". Read current project AGENTS.md (or existing CLAUDE.md when no AGENTS.md exists) and relevant shared state there before acting. Do not replace central facts with a stale checkout copy. Indexed knowledge: " + ", ".join(view["project_knowledge"]) + ". Use available skills only when needed.\n" + task["prompt"] +
                 "\nReturn concrete artifacts, observed checks, unresolved assumptions, shared project changes and any direct human corrections. Do not call Claude again; this task is already delegated.")
+        text += "\nWrite only your assigned files/outputs; serialize Git index/branch changes and shared status integration. Managed .claude/cc-codex-super-agent/worktrees belong only to their assigned temp; do not write or recursively modify them from the main checkout."
         if view["_takeover_history"]:
             text += "\nRecent Router direct work (Claude takeover, separate from Codex turns and acceptance):\n" + json.dumps(view["_takeover_history"][-20:], ensure_ascii=False)
         self.dispatching.add(worker["id"])
@@ -497,7 +803,15 @@ class Manager:
             if self.draining:
                 return
             for worker in self.store.rows("SELECT * FROM workers WHERE mode!='released' OR active_turn IS NOT NULL"):
-                self.reconcile(worker)
+                try:
+                    self.reconcile(worker)
+                except Exception as error:
+                    self.store.event("worker_reconcile_error", worker=worker["id"], payload={"error": str(error)[:500]},
+                                     key="reconcile-error:" + worker["id"] + ":" + digest(str(error)) + ":" + str(int(time.time() / 60)))
+                    if self.transient(error):
+                        continue
+                    for queued in self.store.rows("SELECT id FROM tasks WHERE worker=? AND state='QUEUED'", (worker["id"],)):
+                        self.store.finish(queued["id"], "BLOCKED", error="Native state unavailable; inspect before retry")
             active = len(self.writers(include_reviews=True))
             for task in self.store.rows("SELECT * FROM tasks WHERE state IN ('QUEUED','RUNNING') ORDER BY created"):
                 if task["state"] == "QUEUED" and (task["queue_deadline"] or task["deadline"]) < time.time():
@@ -507,8 +821,28 @@ class Manager:
                 elif task["state"] == "QUEUED" and active < 2:
                     # Only a task that actually started counts against the cap; a task waiting
                     # on its own worktree writer must not starve unrelated projects.
-                    if self._dispatch(task):
-                        active += 1
+                    try:
+                        if self._dispatch(task):
+                            active += 1
+                    except Exception as error:
+                        if self.transient(error):
+                            continue
+                        self.store.finish(task["id"], "BLOCKED", error="Task environment unavailable: " + str(error)[:1000])
+            if not self.writers(include_reviews=True) and time.monotonic() - self.last_cleanup >= 30:
+                self.last_cleanup = time.monotonic()
+                resource = self.store.one("""SELECT s.* FROM workspaces s JOIN workers w ON w.id=s.worker
+                    WHERE s.state='IN_USE' AND w.mode='released'
+                    AND EXISTS(SELECT 1 FROM tasks t WHERE t.worker=w.id)
+                    AND NOT EXISTS(SELECT 1 FROM tasks t WHERE t.worker=w.id AND t.state!='ACCEPTED')
+                    ORDER BY coalesce((SELECT cast(value AS REAL) FROM meta WHERE key='cleanup-at:'||s.id),0),s.created LIMIT 1""")
+                if resource:
+                    self.store.execute("INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                       ("cleanup-at:" + resource["id"], str(time.time())))
+                    try:
+                        self.workspace(resource["router"], resource["id"], cleanup=True)
+                    except Exception as error:
+                        self.store.event("workspace_cleanup_deferred", worker=resource["worker"], payload={"resource": resource["id"], "reason": str(error)[:500]},
+                                         key="cleanup-deferred:" + resource["id"] + ":" + digest(str(error)) + ":" + str(int(time.time() / 3600)))
 
     def _schedule(self):
         while not self.stopped.wait(1):
@@ -558,6 +892,10 @@ class Manager:
             self.store.finish(task_id, "CANCELLED", error="Cancelled by assigned Router")
         self.store.execute("UPDATE workers SET active_turn=NULL WHERE id=? AND active_turn=?", (worker["id"], task["turn"]))
         if self.store.worker(task["worker"])["kind"] == "temp":
+            try:
+                self.background_clear(task["worker"], task["turn"] or "unused")
+            except Exception:
+                pass
             self.client.request("thread/unsubscribe", {"threadId": task["worker"]})
             self.store.execute("UPDATE workers SET mode='released' WHERE id=?", (task["worker"],))
         return self.store.task(task_id)
