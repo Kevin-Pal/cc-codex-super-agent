@@ -1,5 +1,7 @@
 # CC–Codex Super Agent
 
+查看 [Router–Worker 交互 API](docs/worker-interaction.md)：区分现行 0.3.0 能力与 0.4.0 候选；[设计原则](docs/agent-design-principles.md)说明哪些机械步骤应由程序承担。当前公开源码未安装候选命令。
+
 当前源码：**0.3.0**。查看[组件及安装改动](docs/framework-components.md)、[路径、归属与回收](docs/project-paths.md)、[版本维护](docs/versioning.md)。正式 Worker 固定在 Router 的项目入口；temp 按需使用受管 worktree。
 
 ```mermaid

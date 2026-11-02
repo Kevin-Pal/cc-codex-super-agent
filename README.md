@@ -1,5 +1,7 @@
 # CC–Codex Super Agent
 
+Read the [Router–Worker interaction API](docs/worker-interaction.md) for what 0.3.0 can already read and the 0.4.0 candidate; [design principles](docs/agent-design-principles.md) explain which mechanics belong in code. Candidate commands are not installed by the current public snapshot.
+
 Current source: **0.3.0**. [Components and installed changes](docs/framework-components.md) · [Paths, ownership and cleanup](docs/project-paths.md) · [Versioning](docs/versioning.md). Formal Workers stay at one project entry; only temps use optional managed worktrees.
 
 ```mermaid

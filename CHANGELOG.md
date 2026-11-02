@@ -1,5 +1,10 @@
 # Changelog
 
+## Documentation — interaction and deterministic mechanics
+
+- Explain current history/queue/steer behavior and explicitly separate the unshipped 0.4.0 API candidate.
+- Document code-owned pagination/delivery/state rules versus Router-owned intent/guidance/acceptance, with primary-source references. No runtime/version/install changes in this documentation update.
+
 ## 0.3.0 — 2026-11-03
 
 - Bind a Router-created formal team to one intentional project entry. Freeze the entry through hooks, validate creation/native cwd at dispatch, keep external inspection/adoption from rebinding the Router, and provide explicit idle same-ID path repair.
