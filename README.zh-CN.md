@@ -1,66 +1,44 @@
 # CC–Codex Super Agent
 
-查看 [Router–Worker 交互 API](docs/worker-interaction.md)：区分现行 0.3.0 能力与 0.4.0 候选；[设计原则](docs/agent-design-principles.md)说明哪些机械步骤应由程序承担。当前公开源码未安装候选命令。
+[English](README.md)
 
-当前源码：**0.3.0**。查看[组件及安装改动](docs/framework-components.md)、[路径、归属与回收](docs/project-paths.md)、[版本维护](docs/versioning.md)。正式 Worker 固定在 Router 的项目入口；temp 按需使用受管 worktree。
+**Claude Code 负责理解、规划、指导和验收，Codex 在可持续复用的 Worker 会话里执行。**
 
-```mermaid
-flowchart LR
-  H[Person] --> CLI[Claude CLI]
-  CLI <--> R[Router: intent, guidance, acceptance, delivery]
-  subgraph RV[Router relationships]
-    F[Owned formal Workers: fixed project P]
-    T[Owned temps: P or managed worktree]
-    X[User-named external sessions: original owner and path]
-  end
-  R --> F
-  R --> T
-  R -. inspect or explicit transfer .-> X
-  F <--> N[Native Codex threads and turns]
-  T <--> N
-  X <--> N
-  H <--> D[Codex Desktop: formal chats and personal chats]
-  D <--> N
-  N --> C[Coordinator: JSON-RPC events, registry, results]
-  C --> K[Claude hooks: bounded context and wakeup]
-  K --> R
-  R --> O[Reviewed final report]
-  O --> H
-  M[Project P: shared rules and authoritative state] --> R
-  M --> F
-  M --> T
+你主要与一个 Claude Code Router 对话，由它安排任务、检查结果、整理交付。你也可以在 Codex Desktop 打开同一个正式 Worker，观察进度或直接介入。
+
+`人 ↔ Claude Code Router ↔ Codex Workers`
+
+适合已经使用这两种 harness、希望减少任务交接与人工盯进度的人。项目提供协作规则、按需加载的 skill，以及基于 Codex 原生会话的小型协调运行层。
+
+## 开始使用
+
+在同一台 macOS/Linux 执行设备、同一用户下准备 Python 3.11+、Git、可用的 Claude Code 和 Codex 原生后端。需要可用的共享原生控制端点，检查方法及安装说明见 [SETUP](SETUP.md)。
+
+```sh
+git clone https://github.com/Kevin-Pal/cc-codex-super-agent.git
+cd cc-codex-super-agent
+PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both
+PYTHONPATH=src python3 -m claude_codex_workflow.cli install --role both --apply
+ai-work doctor
 ```
 
-**Claude Code harness 做 Router，Codex harness 做 Worker。**
+第一次安装命令只预览改动；确认后第二条执行安装，加入本框架管理的指令块、角色 skill、`ai-work` 和协调 hooks。安装器不调整供应商、认证或隐私设置。
 
-面向同时熟悉或使用两种 harness 的人：你与 Claude 对齐目标，Claude 写约束、调度与验收 Codex；需要时直接在 Codex Desktop 与正式 Worker 对话。可以使用你自己符合条件的订阅或其他原生配置；项目不提供账号、不管理供应商、不保证特定套餐额度。
+1. 在项目目录启动 Claude Code，加载 `/claude-codex-router`。
+2. 说明目标和边界，由 Router 委派执行、指导返工并验收。
+3. 在 Codex Desktop 打开同一路径，查看正式 Worker 和自己的会话。人工介入及控制权见[会话指南](docs/session-lifecycle.md)。
 
-灵感来自 DeepSeek 的 *[Exploring Super-agent Design: Towards a More Autonomous Agent System](https://x.com/DeepSeekHarness/article/2116857257245987236)* 和 [研究原型](https://github.com/deepseek-ai/dsh-superagent-prototype)。本项目独立实现其中适合 CC–Codex 协作的 Router/Worker 思路，不依赖 DeepSeek、DSH 或 DSH+ 运行时，不代表官方关联或完整功能复刻。我们有意让 Router 承担理解、指导、交叉核验和最终加工。
+本地与远程的使用方式基本一致。远程执行时用 SSH/tmux 访问 Claude，用 Desktop Remote 访问 Codex；仅负责访问的电脑无需安装本框架。
 
-[English](README.md) · [安装](SETUP.md) · [架构](docs/architecture.md) · [版本兼容](docs/harness-compatibility.md) · [后续方向](docs/roadmap.md)
+## 进一步了解
 
-## 为什么这样分工
+- [安装、权限与回滚](SETUP.md)
+- [组件与架构图](docs/framework-components.md) · [路径与归属](docs/project-paths.md)
+- [工作包与验收](docs/router-prompts.md) · [会话交互接口](docs/worker-interaction.md)
+- [实际验证与限制](docs/runtime-validation.md) · [参与贡献](CONTRIBUTING.md)
 
-Claude 亲自承担规划、关键判断、验收和交付；用户点名 Claude 的美化、设计或核验也由它完成。常规实质执行默认交给 Codex；低风险微任务可以直接做。Worker 不足时 Router 要提供具体诊断和增量指导，不能只原样转发。
+当前公开运行源码为 **0.3.0**；文档将尚未发布的 0.4.0 交互候选单独标明。同一工作树的写任务目前排队，temp 可按需使用隔离 worktree。原生版本及恢复边界见验证记录。
 
-正式 Worker 按长期方向续用原生会话；一次性 temp 不进入日常名单；用户自建 session 只有被点名后才接管。人既能和 Router 交互，也能在 Desktop 中观察、纠偏正式 Worker。项目知识共用 AGENTS.md 和权威状态文档，不另维护三份事实库。
+架构受 DeepSeek 的 [Super-agent 探索](https://x.com/DeepSeekHarness/article/2116857257245987236)启发。这是 Claude Code + Codex 的独立实现，不依赖或隶属于 DeepSeek/DSH。
 
-## 底层通信与上下文
-
-`ai-work` 输出 JSON，协调器通过本地 socket 和原生 App Server JSON-RPC 的 thread/turn/事件接口工作，不依赖截图、按键模拟或人工搬运结果。工作内容仍以文本为主，身份、状态、同步位置和完成事件是结构化数据。
-
-`result` 优先取最终答复；`sync` 返回有预算的增量输入与 agentMessage，可能包含公开进度。适配器不向 Router 转交 reasoning 项或原始工具输出流。Router 按需读文件、diff 和测试证据验收；最终答复不自动等于信息充分或任务通过。
-
-事件唤回、会话复用和增量同步旨在减少轮询、重复背景及历史搬运。尚未测量节省比例，Worker 自身推理和 Router 验收照常产生用量。详见 [通信与可优化方向](docs/communication-and-sandbox.md)。
-
-## 使用
-
-首个源码快照 `0.3.0` 包含运行层、两端技能、可选手动 Pro 顾问和可回滚安装器。需要 Python 3.11+、POSIX macOS/Linux、同一执行用户下可用的原生 Codex 后端/control socket；仅装 CLI 不保证有该端点。按 [SETUP.md](SETUP.md) 先预览再安装。当前支持 Git checkout/源码归档安装，尚不支持 wheel/PyPI 分发。
-
-执行端承载项目入口、Claude CLI、Codex 后端和框架。人可以就在执行端，也可以通过 SSH/tmux 与 Codex Desktop Remote 访问；访问端无需再装框架。任务实际操作的目标可以在别处。
-
-trusted-worker 使用较宽原生权限和 approvalPolicy=never，必须有具体授权与验收；只读复核可用 independent-review。框架不是 OS 隔离，未纳管会话、任意 Bash 写入及外部共享资源仍需协调。
-
-Linux执行端＋Mac Desktop Remote 的基础流程已试点；Mac/Linux隔离回归覆盖不等于所有原生组合都验收。已测版本、temp重连/45分钟唤回窗口等限制见 [验证](docs/runtime-validation.md)。0.3.0 已实现 temp worktree 准备与受保护的回收；自动分支集成、更细的并发写入准入、结构化问答桥等继续 TBD。
-
-MIT许可。私有实例的供应商/认证/隐私配置、原始聊天、真实项目记忆和内部维护不进入此库；后续只接收经过审查的阶段快照。
+[MIT 许可证](LICENSE)。

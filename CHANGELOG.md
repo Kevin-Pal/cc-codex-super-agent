@@ -2,6 +2,8 @@
 
 ## Documentation — interaction and deterministic mechanics
 
+- Simplify both README entry pages around purpose, setup and usage; keep the full architecture diagram in its dedicated guide.
+
 - Explain current history/queue/steer behavior and explicitly separate the unshipped 0.4.0 API candidate.
 - Document code-owned pagination/delivery/state rules versus Router-owned intent/guidance/acceptance, with primary-source references. No runtime/version/install changes in this documentation update.
 
