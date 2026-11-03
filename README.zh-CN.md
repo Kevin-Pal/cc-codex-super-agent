@@ -1,7 +1,5 @@
 # CC–Codex Super Agent
 
-[English](README.md)
-
 **Claude Code harness 做 Router，Codex harness 做 Worker。**
 
 面向同时熟悉或使用两种 harness 的人：你与 Claude 对齐目标，Claude 写约束、调度与验收 Codex；需要时直接在 Codex Desktop 与正式 Worker 对话。可以使用你自己符合条件的订阅或其他原生配置；项目不提供账号、不管理供应商、不保证特定套餐额度。

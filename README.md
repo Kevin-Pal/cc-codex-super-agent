@@ -1,7 +1,5 @@
 # CC–Codex Super Agent
 
-[简体中文](README.zh-CN.md)
-
 **Claude Code harness as Router. Codex harness as Worker.**
 
 An independent, rules-first collaboration workflow for people who use both tools: align intent with Claude Code, let it guide and review native Codex Workers, and intervene directly through Codex Desktop when useful.
